@@ -36,6 +36,8 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
   List<Project> projectList = []; // 프로젝트 데이터 저장
   String? selectedLabel; // 선택된 프로젝트 이름
 
+  final TextEditingController titleController = TextEditingController(); // 제목 컨트롤러
+
   @override
   void initState() {
     super.initState();
@@ -64,9 +66,20 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
             onPressed: () {
               // Save functionality here
             },
-            child: Text(
-              '저장',
-              style: TextStyle(color: Colors.blue),
+            child: ElevatedButton(
+              onPressed: () {
+                // 1. 입력한 데이터를 수집
+                final newSchedule = {
+                  'title': titleController.text,
+                  'type': selectedType,
+                  'label': selectedLabel,
+                  'date': startDate,
+                };
+
+                // 2. 메인 페이지로 데이터 전달
+                Navigator.pop(context, newSchedule);
+              },
+              child: Text('저장'),
             ),
           ),
         ],
@@ -77,6 +90,7 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
+              controller: titleController,
               decoration: InputDecoration(
                 labelText: '제목 추가',
                 border: OutlineInputBorder(),
@@ -129,33 +143,28 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
                 decoration: InputDecoration(
                   border: OutlineInputBorder(),
                 ),
-                value: selectedLabel != null
-    ? projectList.firstWhereOrNull((project) => project.name == selectedLabel)
-    : null,
+                value: projectList.firstWhereOrNull((project) => project.name == selectedLabel),
                 items: projectList
                     .where((project) => !project.isCompleted) // 완료되지 않은 프로젝트만 필터링
                     .map((project) {
-                      return DropdownMenuItem<Project>(
-                        value: selectedLabel != null
-    ? projectList.firstWhereOrNull((project) => project.name == selectedLabel)
-    : null,
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 16,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                color: project.color, // 프로젝트 색상 표시
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Text(project.name), // 프로젝트 이름 표시
-                          ],
+                  return DropdownMenuItem<Project>(
+                    value: project, // 각 DropdownMenuItem에 project 객체를 전달
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: project.color, // 프로젝트 색상 표시
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      );
-                    })
-                    .toList(),
+                        SizedBox(width: 8),
+                        Text(project.name), // 프로젝트 이름 표시
+                      ],
+                    ),
+                  );
+                }).toList(),
                 onChanged: (Project? value) {
                   setState(() {
                     selectedLabel = value?.name; // 선택된 프로젝트의 이름 저장
@@ -233,6 +242,7 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
                 ],
               ),
             ],
+            SizedBox(height: 16),
           ],
         ),
       ),

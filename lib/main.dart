@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:roseo_study/add_schedule/add_schedule.dart';
+import 'package:roseo_study/schedule/add_schedule.dart';
 
 final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
   2024: {

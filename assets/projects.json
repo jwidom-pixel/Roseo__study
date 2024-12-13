@@ -1,6 +1,15 @@
 {
   "projects": [
     {
+      "id": 0,
+      "name": "10월 커미션",
+      "client": "1명",
+      "profit": 1000000,
+      "isCompleted": true,
+      "lastEventDate": "2024-10-20",
+      "color": "#9747FF"
+    },
+    {
       "id": 1,
       "name": "11-12월 커미션",
       "client": "5명",
