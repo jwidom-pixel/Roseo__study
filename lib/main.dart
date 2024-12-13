@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:roseo_study/add_schedule/add_schedule.dart';
 
 final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
   2024: {
@@ -16,7 +17,6 @@ final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
     ],
   },
 };
-
 
 void main() {
   runApp(MyApp());
@@ -90,14 +90,13 @@ class _CalendarPageState extends State<CalendarPage> {
 
   @override
   Widget build(BuildContext context) {
-final projects = [
-  {'title': '11~12월 커미션', 'daysLeft': 3, 'color': Color(0xFF9747FF)},
-  {'title': '신세계 백화점 연말 전시 포스터/리플렛', 'daysLeft': 17, 'color': Color(0xFFFF776A)},
-  {'title': '신세계 백화점 연초 아트월', 'daysLeft': 40, 'color': Color.fromARGB(255, 255, 81, 87)},
-  {'title': '팟캐스트', 'daysLeft': 83, 'color': Color.fromARGB(255, 255, 164, 6)},
-  {'title': '24절기 병풍 프로젝트', 'daysLeft': 320, 'color': Color(0xFFCCA0FF)},
-];
-
+    final projects = [
+      {'title': '11~12월 커미션', 'daysLeft': 3, 'color': Color(0xFF9747FF)},
+      {'title': '신세계 백화점 연말 전시 포스터/리플렛', 'daysLeft': 17, 'color': Color(0xFFFF776A)},
+      {'title': '신세계 백화점 연초 아트월', 'daysLeft': 40, 'color': Color.fromARGB(255, 255, 81, 87)},
+      {'title': '팟캐스트', 'daysLeft': 83, 'color': Color.fromARGB(255, 255, 164, 6)},
+      {'title': '24절기 병풍 프로젝트', 'daysLeft': 320, 'color': Color(0xFFCCA0FF)},
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -219,6 +218,16 @@ final projects = [
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => (AddSchedulePage())),
+    );
+  },
+  backgroundColor: Colors.black,
+  child: Icon(Icons.add, color: Colors.white),
+),
 
       // 하단 네비게이션
       bottomNavigationBar: BottomNavigationBar(

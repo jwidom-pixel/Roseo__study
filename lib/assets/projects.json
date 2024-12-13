@@ -1,0 +1,22 @@
+{
+  "projects": [
+    {
+      "id": 1,
+      "name": "11-12월 커미션",
+      "client": "5명",
+      "profit": 2500000,
+      "isCompleted": false,
+      "lastEventDate": "2024-12-15",
+      "color": "#9747FF"
+    },
+    {
+      "id": 2,
+      "name": "신세계 백화점 신년 기획전 포스터/리플렛",
+      "client": "광주 신세계 백화점",
+      "profit": 4000000,
+      "isCompleted": false,
+      "lastEventDate": "2024-12-19",
+      "color": "#FF776A"
+    }
+  ]
+}
