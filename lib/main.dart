@@ -21,6 +21,15 @@ final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
   },
 };
 
+//일자 표시용 밸류
+int getStartWeekday(int year, int month) {
+  return DateTime(year, month, 2).weekday; // 1일의 요일 (일요일=2)
+}
+int getTotalDays(int year, int month) {
+  return DateTime(year, month + 1, 0).day; // 해당 월의 총 일 수
+}
+//
+
 void main() {
   runApp(ProviderScope(child: MyApp()));
 }
@@ -322,57 +331,92 @@ class CalendarGrid extends StatelessWidget {
             Expanded(
               child: GridView.builder(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 7,
-                  childAspectRatio: 1,
-                  crossAxisSpacing: 4,
-                  mainAxisSpacing: 4,
-                ),
-                itemCount: DateTime(year, month + 1, 0).day, // 월의 총 일 수
+  crossAxisCount: 7, // 7열(요일 기준)
+  childAspectRatio: 0.8, // 세로 길이를 가로보다 더 길게 설정 (0.8은 세로가 더 길어짐)
+  crossAxisSpacing: 0, // 블록 간격
+  mainAxisSpacing: 0, // 블록 간격
+),
+                itemCount: 36, // 6 x 6 그리드
                 itemBuilder: (context, index) {
-                  final day = index + 1;
-                  final currentDate = DateTime(year, month, day);
+  final startWeekday = getStartWeekday(year, month); // 현재 달 1일의 시작 요일
+  final totalDays = getTotalDays(year, month);
 
-                  // 현재 날짜에 해당하는 일정 필터링
-                  final daySchedules = schedules.where((schedule) {
-                    final scheduleDate = DateTime.parse(schedule['date']);
-                    return scheduleDate.year == year &&
-                        scheduleDate.month == month &&
-                        scheduleDate.day == day;
-                  }).toList();
+  // 전달의 마지막 날짜 계산
+  final previousMonth = month == 1 ? 12 : month - 1;
+  final previousYear = month == 1 ? year - 1 : year;
+  final previousMonthTotalDays = getTotalDays(previousYear, previousMonth);
 
-                  return Container(
-                    alignment: Alignment.topCenter,
+  // 현재 칸의 날짜 계산
+  int? day;
+  DateTime? currentDate;
+
+  if (index < startWeekday - 1) {
+    // 전달 날짜
+    day = previousMonthTotalDays - (startWeekday - 2 - index);
+    currentDate = DateTime(previousYear, previousMonth, day);
+  } else if (index >= startWeekday - 1 + totalDays) {
+    // 다음 달 날짜
+    day = index - (startWeekday - 1 + totalDays) + 1;
+    currentDate = DateTime(
+      month == 12 ? year + 1 : year,
+      month == 12 ? 1 : month + 1,
+      day,
+    );
+  } else {
+    // 현재 달 날짜
+    day = index - (startWeekday - 2);
+    currentDate = DateTime(year, month, day);
+  }
+
+  // 현재 날짜에 맞는 일정 필터링
+  final daySchedules = schedules.where((schedule) {
+    final scheduleDate = DateTime.parse(schedule['date']);
+    return scheduleDate.year == currentDate!.year &&
+        scheduleDate.month == currentDate.month &&
+        scheduleDate.day == currentDate.day;
+  }).toList();
+
+  // 블록 UI
+  return Container(
+    alignment: Alignment.topCenter,
+    decoration: BoxDecoration(
+      border: Border.all(color: const Color.fromARGB(255, 247, 247, 247)),
+      borderRadius: BorderRadius.circular(0),//나중에 블록에 둥글기 넣고 싶으면 사용
+      color: currentDate?.month == month ? Colors.white : const Color.fromARGB(255, 250, 250, 250),
+    ),
+    child: Column(
+      children: [
+        Text(
+          '$day',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: currentDate?.month == month ? Colors.black : Colors.grey,
+          ),
+        ),
+        ...daySchedules.map((schedule) => Padding(
+              padding: const EdgeInsets.only(top: 2.0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(8),
+                      color: schedule['color'] ?? Colors.grey,
+                      shape: BoxShape.circle,
                     ),
-                    child: Column(
-                      children: [
-                        Text('$day', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ...daySchedules.map((schedule) => Padding(
-                              padding: const EdgeInsets.only(top: 2.0),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: schedule['color'] ?? Colors.grey,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    schedule['title'],
-                                    style: TextStyle(fontSize: 10),
-                                  ),
-                                ],
-                              ),
-                            )),
-                      ],
-                    ),
-                  );
-                },
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    schedule['title'],
+                    style: TextStyle(fontSize: 10),
+                  ),
+                ],
+              ),
+            )),
+      ],
+    ),
+  );
+},
               ),
             ),
           ],
