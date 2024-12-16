@@ -21,11 +21,7 @@ final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
 };
 
 void main() {
-  runApp(
-    ProviderScope(
-      child: MyApp(),
-    ),
-  );
+  runApp(ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
