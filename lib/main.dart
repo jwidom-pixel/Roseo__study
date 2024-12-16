@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:roseo_study/schedule/add_schedule.dart';
 import 'schedule/schedule_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:roseo_study/project/projects.dart';
 
 
 final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
@@ -23,7 +24,7 @@ final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
 
 //일자 표시용 밸류
 int getStartWeekday(int year, int month) {
-  return DateTime(year, month, 2).weekday; // 1일의 요일 (일요일=2)
+  return DateTime(year, month, 1).weekday; // 1일의 요일 (일요일=1)
 }
 int getTotalDays(int year, int month) {
   return DateTime(year, month + 1, 0).day; // 해당 월의 총 일 수
@@ -244,11 +245,11 @@ class _CalendarPageState extends State<CalendarPage> {
       bottomNavigationBar: BottomNavigationBar(
         items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: '캘린더',
+            icon: Icon(Icons.list),
+            label: '프로젝트 보기',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle, size: 40, color: Colors.blue),
+            icon: Icon(Icons.calendar_today, size: 40, color: Colors.blue),
             label: '',
           ),
           BottomNavigationBarItem(
@@ -256,6 +257,18 @@ class _CalendarPageState extends State<CalendarPage> {
             label: '설정',
           ),
         ],
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ProjectsPage()),
+            );
+          } else if (index == 1) {
+            // 캘린더 버튼은 현재 화면 유지
+          } else if (index == 2) {
+            // 설정 페이지로 이동하도록 구현
+          }
+        },
       ),
     );
   }
@@ -336,7 +349,7 @@ class CalendarGrid extends StatelessWidget {
   crossAxisSpacing: 0, // 블록 간격
   mainAxisSpacing: 0, // 블록 간격
 ),
-                itemCount: 36, // 6 x 6 그리드
+                itemCount: 42, // 7 x 6 그리드
                 itemBuilder: (context, index) {
   final startWeekday = getStartWeekday(year, month); // 현재 달 1일의 시작 요일
   final totalDays = getTotalDays(year, month);
@@ -381,7 +394,6 @@ class CalendarGrid extends StatelessWidget {
     alignment: Alignment.topCenter,
     decoration: BoxDecoration(
       border: Border.all(color: const Color.fromARGB(255, 247, 247, 247)),
-      borderRadius: BorderRadius.circular(0),//나중에 블록에 둥글기 넣고 싶으면 사용
       color: currentDate?.month == month ? Colors.white : const Color.fromARGB(255, 250, 250, 250),
     ),
     child: Column(
