@@ -68,29 +68,32 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
               final scheduleState = ref.watch(scheduleProvider);
 
               return ElevatedButton(
-                onPressed: scheduleState is AsyncLoading
-                    ? null
-                    : () async {
-                        final newSchedule = {
-                          'title': titleController.text,
-                          'type': selectedType,
-                          'label': selectedLabel,
-                          'date': startDate?.toIso8601String(),
-                          'isAllDay': isAllDay,
-                        };
+                onPressed: () async {
+  final newSchedule = {
+    'title': titleController.text,
+    'type': selectedType,
+    'label': selectedLabel,
+    'date': startDate?.toIso8601String(),
+    'isAllDay': isAllDay,
+    'color': selectedType == '프로젝트'
+        ? projectList.firstWhere((project) => project.name == selectedLabel).color
+        : Colors.grey, // 색상 지정
+  };
 
-                        try {
-                          await ref.read(scheduleProvider.notifier).saveSchedule(newSchedule);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('저장 완료!')),
-                          );
-                          Navigator.pop(context);
-                        } catch (error) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('저장 실패: ${error.toString()}')),
-                          );
-                        }
-                      },
+  try {
+    ref.read(scheduleProvider.notifier).saveSchedule(newSchedule);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('저장 완료!')),
+    );
+    Navigator.pop(context);
+  } catch (error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('저장 실패: ${error.toString()}')),
+    );
+  }
+},
+
+
                 child: scheduleState is AsyncLoading
                     ? CircularProgressIndicator(color: Colors.white)
                     : Text('저장'),

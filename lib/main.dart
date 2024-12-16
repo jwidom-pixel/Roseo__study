@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:roseo_study/schedule/add_schedule.dart';
+import 'schedule/schedule_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 
@@ -208,15 +209,14 @@ class _CalendarPageState extends State<CalendarPage> {
 
             // 캘린더 영역
             Expanded(
-              child: Container(
-                padding: EdgeInsets.all(8),
-                child: CalendarGrid(
-                  month: currentMonth,
-                  year: currentYear,
-                  projects: projectDates[currentMonth] ?? {},
-                ),
-              ),
-            ),
+  child: Container(
+    padding: EdgeInsets.all(8),
+    child: CalendarGrid(
+      month: currentMonth,
+      year: currentYear,
+    ),
+  ),
+),
           ],
         ),
       ),
@@ -291,118 +291,93 @@ class ProjectChip extends StatelessWidget {
 class CalendarGrid extends StatelessWidget {
   final int month;
   final int year;
-  final Map<int, List<Map<String, dynamic>>> projects;
 
-  CalendarGrid({super.key, required this.month, required this.year, required this.projects});
-
-  List<Widget> _buildCalendarDays() {
-    List<Widget> days = [];
-    int daysInMonth = DateTime(year, month + 1, 0).day; // 현재 월의 총 일수
-    int firstWeekday = DateTime(year, month, 1).weekday; // 해당 월 1일의 요일 (1=월, 7=일)
-
-    // 전월의 일수를 가져옴
-    int daysInPrevMonth = DateTime(year, month, 0).day;
-    int prevMonthStartDay = daysInPrevMonth - (firstWeekday % 7) + 1;
-
-    // 전월 날짜를 추가
-    for (int i = prevMonthStartDay; i <= daysInPrevMonth; i++) {
-      days.add(Container(
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
-          color: Colors.grey.shade200, // 회색 배경
-        ),
-        child: Text(
-          '$i',
-          style: TextStyle(color: Colors.grey), // 회색 글자색
-        ),
-      ));
-    }
-
-    // 현재 월 날짜 추가
-    for (int i = 1; i <= daysInMonth; i++) {
-      List<Map<String, dynamic>> dayProjects = projects[i] ?? [];
-
-      days.add(Container(
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('$i', style: TextStyle(fontWeight: FontWeight.bold)),
-            ...dayProjects.map((project) => Padding(
-              padding: const EdgeInsets.only(top: 2.0),
-              child: Text(
-                project['title'],
-                style: TextStyle(fontSize: 10, color: project['color']),
-                textAlign: TextAlign.center,
-              ),
-            )),
-          ],
-        ),
-      ));
-    }
-
-    // 다음 달 날짜 추가
-    int nextMonthDays = 7 - (days.length % 7);
-    for (int i = 1; i <= nextMonthDays; i++) {
-      days.add(Container(
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
-          color: Colors.grey.shade200, // 회색 배경
-        ),
-        child: Text(
-          '$i',
-          style: TextStyle(color: Colors.grey), // 회색 글자색
-        ),
-      ));
-    }
-
-    return days;
-  }
+  CalendarGrid({required this.month, required this.year});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Weekday labels
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: ['일', '월', '화', '수', '목', '금', '토']
-              .map((day) => Expanded(
-                    child: Center(
-                      child: Text(
-                        day,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: day == '일' ? Colors.red : (day == '토' ? Colors.blue : Colors.black),
+    return Consumer(
+      builder: (context, ref, child) {
+        // scheduleProvider에서 데이터 읽기
+        final schedules = ref.watch(scheduleProvider);
+
+        return Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: ['일', '월', '화', '수', '목', '금', '토']
+                  .map((day) => Expanded(
+                        child: Center(
+                          child: Text(
+                            day,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: day == '일' ? Colors.red : (day == '토' ? Colors.blue : Colors.black),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ))
-              .toList(),
-        ),
-        Expanded(
-          child: GridView.builder(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              childAspectRatio: 1,
-              crossAxisSpacing: 4,
-              mainAxisSpacing: 4,
+                      ))
+                  .toList(),
             ),
-            itemCount: _buildCalendarDays().length,
-            itemBuilder: (context, index) {
-              return _buildCalendarDays()[index];
-            },
-          ),
-        ),
-      ],
+            Expanded(
+              child: GridView.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  childAspectRatio: 1,
+                  crossAxisSpacing: 4,
+                  mainAxisSpacing: 4,
+                ),
+                itemCount: DateTime(year, month + 1, 0).day, // 월의 총 일 수
+                itemBuilder: (context, index) {
+                  final day = index + 1;
+                  final currentDate = DateTime(year, month, day);
+
+                  // 현재 날짜에 해당하는 일정 필터링
+                  final daySchedules = schedules.where((schedule) {
+                    final scheduleDate = DateTime.parse(schedule['date']);
+                    return scheduleDate.year == year &&
+                        scheduleDate.month == month &&
+                        scheduleDate.day == day;
+                  }).toList();
+
+                  return Container(
+                    alignment: Alignment.topCenter,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Text('$day', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ...daySchedules.map((schedule) => Padding(
+                              padding: const EdgeInsets.only(top: 2.0),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: schedule['color'] ?? Colors.grey,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    schedule['title'],
+                                    style: TextStyle(fontSize: 10),
+                                  ),
+                                ],
+                              ),
+                            )),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
