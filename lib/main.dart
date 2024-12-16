@@ -3,9 +3,11 @@ import 'package:flutter/gestures.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:roseo_study/schedule/add_schedule.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 
 final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
-  2024: {
+  2024:{
     12: [
       {'day': 1, 'title': '프로젝트 A', 'color': Colors.purple},
       {'day': 5, 'title': '프로젝트 B', 'color': Colors.orange},
@@ -19,7 +21,11 @@ final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
 };
 
 void main() {
-  runApp(MyApp());
+  runApp(
+    ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -277,7 +283,7 @@ class ProjectChip extends StatelessWidget {
             ),
           ),
           Text(
-            '${daysLeft}일 남음',
+            '$daysLeft}일 남음',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
         ],
@@ -291,7 +297,7 @@ class CalendarGrid extends StatelessWidget {
   final int year;
   final Map<int, List<Map<String, dynamic>>> projects;
 
-  CalendarGrid({required this.month, required this.year, required this.projects});
+  CalendarGrid({super.key, required this.month, required this.year, required this.projects});
 
   List<Widget> _buildCalendarDays() {
     List<Widget> days = [];

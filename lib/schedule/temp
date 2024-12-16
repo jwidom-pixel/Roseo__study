@@ -1,0 +1,218 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:collection/collection.dart';
+
+class AddSchedulePage extends StatefulWidget {
+  @override
+  AddSchedulePageState createState() => AddSchedulePageState();
+}
+
+class AddSchedulePageState extends State<AddSchedulePage> {
+  final TextEditingController titleController = TextEditingController();
+  String selectedType = '일정';
+  bool isAllDay = false;
+  DateTime? startDate;
+  DateTime? endDate;
+
+  List<Project> projectList = [];
+  String? selectedLabel;
+
+  @override
+  void initState() {
+    super.initState();
+    loadProjects();
+  }
+
+  // 제이슨으로부터 프로젝트 데이터 불러오기
+  Future<void> loadProjects() async {
+    final String response =
+        await DefaultAssetBundle.of(context).loadString('assets/projects.json');
+    final data = json.decode(response);
+    setState(() {
+      projectList = (data['projects'] as List)
+          .map((json) => Project.fromJson(json))
+          .toList();
+    });
+  }
+
+  // 데이터 저장하기
+  Future<void> saveData(List<Map<String, dynamic>> data) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String jsonString = jsonEncode(data);
+    await prefs.setString('dataList', jsonString);
+  }
+
+  // 새로운 일정 데이터 생성 후 이전 페이지로 돌아가기
+  void addData() {
+    final newData = {
+      'id': DateTime.now().toIso8601String().split('.')[0],
+      'title': titleController.text,
+      'type': selectedType,
+      'label': selectedLabel,
+      'startDate': startDate?.toIso8601String().split('.')[0],
+      'endDate': endDate?.toIso8601String().split('.')[0],
+    };
+    saveData([newData]);
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('일정 추가'),
+        actions: [
+          ElevatedButton(
+            onPressed: addData,
+            child: Text('저장'),
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: InputDecoration(
+                labelText: '제목 추가',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: ['일정', '할 일', '프로젝트'].map((type) {
+                return ChoiceChip(
+                  label: Text(type),
+                  selected: selectedType == type,
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        selectedType = type;
+                      });
+                    }
+                  },
+                );
+              }).toList(),
+            ),
+            SizedBox(height: 16),
+            if (selectedType == '프로젝트') ...[
+              Text('라벨 선택', style: TextStyle(fontSize: 16)),
+              SizedBox(height: 8),
+              DropdownButtonFormField<Project>(
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                ),
+                value: projectList.firstWhereOrNull(
+                    (project) => project.name == selectedLabel),
+                items: projectList
+                    .where((project) => !project.isCompleted)
+                    .map((project) {
+                  return DropdownMenuItem<Project>(
+                    value: project,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: project.color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text(project.name),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (Project? value) {
+                  setState(() {
+                    selectedLabel = value?.name;
+                  });
+                },
+              ),
+              SizedBox(height: 16),
+            ],
+            Row(
+              children: [
+                Text('종일', style: TextStyle(fontSize: 16)),
+                Spacer(),
+                Switch(
+                  value: isAllDay,
+                  onChanged: (value) {
+                    setState(() {
+                      isAllDay = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            _buildDatePicker('시작', startDate, (date) {
+              setState(() {
+                startDate = date;
+              });
+            }),
+            if (!isAllDay)
+              _buildDatePicker('종료', endDate, (date) {
+                setState(() {
+                  endDate = date;
+                });
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDatePicker(String label, DateTime? date, Function(DateTime) onPicked) {
+    return Row(
+      children: [
+        Text(label, style: TextStyle(fontSize: 16)),
+        Spacer(),
+        TextButton(
+          onPressed: () async {
+            final pickedDate = await showDatePicker(
+              context: context,
+              initialDate: date ?? DateTime.now(),
+              firstDate: DateTime(2023),
+              lastDate: DateTime(2100),
+            );
+            if (pickedDate != null) {
+              onPicked(pickedDate);
+            }
+          },
+          child: Text(
+            date != null
+                ? '${date.year}-${date.month}-${date.day}'
+                : '날짜 선택',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class Project {
+  final String name;
+  final bool isCompleted;
+  final Color color;
+
+  Project({
+    required this.name,
+    required this.isCompleted,
+    required this.color,
+  });
+
+  factory Project.fromJson(Map<String, dynamic> json) {
+    return Project(
+      name: json['name'],
+      isCompleted: json['isCompleted'],
+      color: Color(int.parse(json['color'].substring(1, 7), radix: 16) + 0xFF000000),
+    );
+  }
+}

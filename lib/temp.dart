@@ -77,7 +77,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   void _showAddEventDialog(BuildContext context) {
-    final TextEditingController _controller = TextEditingController();
+    final TextEditingController controller = TextEditingController();
 
     showDialog(
       context: context,
@@ -85,7 +85,7 @@ class _CalendarPageState extends State<CalendarPage> {
         return AlertDialog(
           title: Text('일정 추가'),
           content: TextField(
-            controller: _controller,
+            controller: controller,
             decoration: InputDecoration(hintText: '일정을 입력하세요'),
           ),
           actions: [
@@ -97,8 +97,8 @@ class _CalendarPageState extends State<CalendarPage> {
             ),
             TextButton(
               onPressed: () {
-                if (_controller.text.isNotEmpty) {
-                  _addEvent(_controller.text);
+                if (controller.text.isNotEmpty) {
+                  _addEvent(controller.text);
                 }
                 Navigator.of(context).pop();
               },
