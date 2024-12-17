@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+
 class ScheduleService {
   static const String baseUrl = 'https://your-server-api.com'; // 서버 URL 변경 필요
 

@@ -6,6 +6,8 @@ import 'package:roseo_study/schedule/add_schedule.dart';
 import 'schedule/schedule_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:roseo_study/project/projects.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 
 final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
@@ -31,7 +33,11 @@ int getTotalDays(int year, int month) {
 }
 //
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+await Firebase.initializeApp(
+    //options: DefaultFirebaseOptions.currentPlatform,
+);
   runApp(ProviderScope(child: MyApp()));
 }
 
