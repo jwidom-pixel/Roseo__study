@@ -1,31 +1,14 @@
 {
   "projects": [
     {
-      "id": "2024-10-31T00:00:00",
-      "name": "10월 커미션",
-      "client": "1명",
-      "profit": 1000000,
+      "name": "Project 1",
+      "isCompleted": false,
+      "color": "#FF5733"
+    },
+    {
+      "name": "Project 2",
       "isCompleted": true,
-      "lastEventDate": "2024-10-20",
-      "color": "#9747FF"
-    },
-    {
-      "id": "2024-11-1T00:00:00",
-      "name": "11-12월 커미션",
-      "client": "5명",
-      "profit": 2500000,
-      "isCompleted": false,
-      "lastEventDate": "2024-12-15",
-      "color": "#9747FF"
-    },
-    {
-      "id": "2024-12-8T00:00:00",
-      "name": "신세계 백화점 신년 기획전 포스터/리플렛",
-      "client": "광주 신세계 백화점",
-      "profit": 4000000,
-      "isCompleted": false,
-      "lastEventDate": "2024-12-19",
-      "color": "#FF776A"
+      "color": "#33FF57"
     }
   ]
 }

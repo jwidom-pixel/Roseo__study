@@ -8,10 +8,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:roseo_study/project/projects.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
+class ScheduleNotifier extends StateNotifier<List<Map<String, dynamic>>> {
+  ScheduleNotifier() : super([]) {
+    _fetchSchedules();
+  }
+
+  // Firestore에서 일정 실시간 가져오기
+  void _fetchSchedules() {
+    FirebaseFirestore.instance
+        .collection('schedules')
+        .snapshots()
+        .listen((snapshot) {
+      final schedules = snapshot.docs.map((doc) {
+        return {
+          'id': doc.id,
+          ...doc.data() as Map<String, dynamic>,
+        };
+      }).toList();
+      state = schedules; // 상태 업데이트
+    });
+  }
+}
 
 final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
-  2024:{
+  2024: {
     12: [
       {'day': 1, 'title': '프로젝트 A', 'color': Colors.purple},
       {'day': 5, 'title': '프로젝트 B', 'color': Colors.orange},
@@ -26,8 +48,9 @@ final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
 
 //일자 표시용 밸류
 int getStartWeekday(int year, int month) {
-  return DateTime(year, month, 1).weekday; // 1일의 요일 (일요일=1)
+  return DateTime(year, month, 2).weekday; // 1일의 요일 (일요일=2)
 }
+
 int getTotalDays(int year, int month) {
   return DateTime(year, month + 1, 0).day; // 해당 월의 총 일 수
 }
@@ -35,9 +58,9 @@ int getTotalDays(int year, int month) {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-await Firebase.initializeApp(
-    //options: DefaultFirebaseOptions.currentPlatform,
-);
+  await Firebase.initializeApp(
+      //options: DefaultFirebaseOptions.currentPlatform,
+      );
   runApp(ProviderScope(child: MyApp()));
 }
 
@@ -69,7 +92,8 @@ class _CalendarPageState extends State<CalendarPage> {
 
   Future<void> fetchCurrentDateFromServer() async {
     try {
-      final response = await http.get(Uri.parse('https://worldtimeapi.org/api/timezone/Asia/Seoul'));
+      final response = await http
+          .get(Uri.parse('https://worldtimeapi.org/api/timezone/Asia/Seoul'));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -111,9 +135,21 @@ class _CalendarPageState extends State<CalendarPage> {
   Widget build(BuildContext context) {
     final projects = [
       {'title': '11~12월 커미션', 'daysLeft': 3, 'color': Color(0xFF9747FF)},
-      {'title': '신세계 백화점 연말 전시 포스터/리플렛', 'daysLeft': 17, 'color': Color(0xFFFF776A)},
-      {'title': '신세계 백화점 연초 아트월', 'daysLeft': 40, 'color': Color.fromARGB(255, 255, 81, 87)},
-      {'title': '팟캐스트', 'daysLeft': 83, 'color': Color.fromARGB(255, 255, 164, 6)},
+      {
+        'title': '신세계 백화점 연말 전시 포스터/리플렛',
+        'daysLeft': 17,
+        'color': Color(0xFFFF776A)
+      },
+      {
+        'title': '신세계 백화점 연초 아트월',
+        'daysLeft': 40,
+        'color': Color.fromARGB(255, 255, 81, 87)
+      },
+      {
+        'title': '팟캐스트',
+        'daysLeft': 83,
+        'color': Color.fromARGB(255, 255, 164, 6)
+      },
       {'title': '24절기 병풍 프로젝트', 'daysLeft': 320, 'color': Color(0xFFCCA0FF)},
     ];
 
@@ -169,7 +205,8 @@ class _CalendarPageState extends State<CalendarPage> {
           children: [
             AnimatedContainer(
               duration: Duration(milliseconds: 300),
-              height: isExpanded ? MediaQuery.of(context).size.height * 0.27 : 90,
+              height:
+                  isExpanded ? MediaQuery.of(context).size.height * 0.27 : 90,
               //펼쳐졌을 때 높이 : 접혔을 때 높이
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -192,7 +229,9 @@ class _CalendarPageState extends State<CalendarPage> {
                     final reverseIndex = projects.length - index - 1; // 역순 인덱스
                     final project = projects[reverseIndex];
                     final stackSpacing = 3.0; // 스택에서 칩 간의 간격
-                    final topOffset = isExpanded ? reverseIndex * 40.0 : reverseIndex * stackSpacing;
+                    final topOffset = isExpanded
+                        ? reverseIndex * 40.0
+                        : reverseIndex * stackSpacing;
 
                     return AnimatedPositioned(
                       duration: Duration(milliseconds: 300),
@@ -225,27 +264,27 @@ class _CalendarPageState extends State<CalendarPage> {
 
             // 캘린더 영역
             Expanded(
-  child: Container(
-    padding: EdgeInsets.all(8),
-    child: CalendarGrid(
-      month: currentMonth,
-      year: currentYear,
-    ),
-  ),
-),
+              child: Container(
+                padding: EdgeInsets.all(8),
+                child: CalendarGrid(
+                  month: currentMonth,
+                  year: currentYear,
+                ),
+              ),
+            ),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => (AddSchedulePage())),
-    );
-  },
-  backgroundColor: Colors.black,
-  child: Icon(Icons.add, color: Colors.white),
-),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => (AddSchedulePage())),
+          );
+        },
+        backgroundColor: Colors.black,
+        child: Icon(Icons.add, color: Colors.white),
+      ),
 
       // 하단 네비게이션
       bottomNavigationBar: BottomNavigationBar(
@@ -285,7 +324,8 @@ class ProjectChip extends StatelessWidget {
   final int daysLeft;
   final Color color;
 
-  ProjectChip({required this.title, required this.daysLeft, required this.color});
+  ProjectChip(
+      {required this.title, required this.daysLeft, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -302,7 +342,9 @@ class ProjectChip extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: TextStyle(color: Colors.white,),
+              style: TextStyle(
+                color: Colors.white,
+              ),
               textAlign: TextAlign.left,
             ),
           ),
@@ -340,7 +382,9 @@ class CalendarGrid extends StatelessWidget {
                             day,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: day == '일' ? Colors.red : (day == '토' ? Colors.blue : Colors.black),
+                              color: day == '일'
+                                  ? Colors.red
+                                  : (day == '토' ? Colors.blue : Colors.black),
                             ),
                           ),
                         ),
@@ -350,91 +394,95 @@ class CalendarGrid extends StatelessWidget {
             Expanded(
               child: GridView.builder(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-  crossAxisCount: 7, // 7열(요일 기준)
-  childAspectRatio: 0.8, // 세로 길이를 가로보다 더 길게 설정 (0.8은 세로가 더 길어짐)
-  crossAxisSpacing: 0, // 블록 간격
-  mainAxisSpacing: 0, // 블록 간격
-),
+                  crossAxisCount: 7, // 7열(요일 기준)
+                  childAspectRatio: 0.8, // 세로 길이를 가로보다 더 길게 설정 (0.8은 세로가 더 길어짐)
+                  crossAxisSpacing: 0, // 블록 간격
+                  mainAxisSpacing: 0, // 블록 간격
+                ),
                 itemCount: 42, // 7 x 6 그리드
                 itemBuilder: (context, index) {
-  final startWeekday = getStartWeekday(year, month); // 현재 달 1일의 시작 요일
-  final totalDays = getTotalDays(year, month);
+                  final startWeekday = getStartWeekday(year, month);
+                  final totalDays = getTotalDays(year, month);
 
-  // 전달의 마지막 날짜 계산
-  final previousMonth = month == 1 ? 12 : month - 1;
-  final previousYear = month == 1 ? year - 1 : year;
-  final previousMonthTotalDays = getTotalDays(previousYear, previousMonth);
+                  // 현재 날짜 계산
+                  DateTime currentDate;
 
-  // 현재 칸의 날짜 계산
-  int? day;
-  DateTime? currentDate;
+                  if (index < startWeekday - 1) {
+                    // 전달 날짜
+                    final previousMonth = month == 1 ? 12 : month - 1;
+                    final previousYear = month == 1 ? year - 1 : year;
+                    final previousMonthTotalDays =
+                        getTotalDays(previousYear, previousMonth);
+                    final day =
+                        previousMonthTotalDays - (startWeekday - 2 - index);
+                    currentDate = DateTime(previousYear, previousMonth, day);
+                  } else if (index >= startWeekday - 1 + totalDays) {
+                    // 다음 달 날짜
+                    final day = index - (startWeekday - 1 + totalDays) + 1;
+                    final nextMonth = month == 12 ? 1 : month + 1;
+                    final nextYear = month == 12 ? year + 1 : year;
+                    currentDate = DateTime(nextYear, nextMonth, day);
+                  } else {
+                    // 현재 달 날짜
+                    final day = index - (startWeekday - 2);
+                    currentDate = DateTime(year, month, day);
+                  }
 
-  if (index < startWeekday - 1) {
-    // 전달 날짜
-    day = previousMonthTotalDays - (startWeekday - 2 - index);
-    currentDate = DateTime(previousYear, previousMonth, day);
-  } else if (index >= startWeekday - 1 + totalDays) {
-    // 다음 달 날짜
-    day = index - (startWeekday - 1 + totalDays) + 1;
-    currentDate = DateTime(
-      month == 12 ? year + 1 : year,
-      month == 12 ? 1 : month + 1,
-      day,
-    );
-  } else {
-    // 현재 달 날짜
-    day = index - (startWeekday - 2);
-    currentDate = DateTime(year, month, day);
-  }
+                  // currentDate를 사용해 일정을 필터링
+                  final daySchedules = schedules.where((schedule) {
+                    final scheduleDate = DateTime.parse(schedule['date']);
+                    return scheduleDate.year == currentDate.year &&
+                        scheduleDate.month == currentDate.month &&
+                        scheduleDate.day == currentDate.day;
+                  }).toList();
 
-  // 현재 날짜에 맞는 일정 필터링
-  final daySchedules = schedules.where((schedule) {
-    final scheduleDate = DateTime.parse(schedule['date']);
-    return scheduleDate.year == currentDate!.year &&
-        scheduleDate.month == currentDate.month &&
-        scheduleDate.day == currentDate.day;
-  }).toList();
-
-  // 블록 UI
-  return Container(
-    alignment: Alignment.topCenter,
-    decoration: BoxDecoration(
-      border: Border.all(color: const Color.fromARGB(255, 247, 247, 247)),
-      color: currentDate?.month == month ? Colors.white : const Color.fromARGB(255, 250, 250, 250),
-    ),
-    child: Column(
-      children: [
-        Text(
-          '$day',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: currentDate?.month == month ? Colors.black : Colors.grey,
-          ),
-        ),
-        ...daySchedules.map((schedule) => Padding(
-              padding: const EdgeInsets.only(top: 2.0),
-              child: Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
+                  // UI 반환
+                  return Container(
+                    alignment: Alignment.topCenter,
                     decoration: BoxDecoration(
-                      color: schedule['color'] ?? Colors.grey,
-                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: const Color.fromARGB(255, 247, 247, 247)),
+                      color: currentDate.month == month
+                          ? Colors.white
+                          : const Color.fromARGB(255, 250, 250, 250),
                     ),
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    schedule['title'],
-                    style: TextStyle(fontSize: 10),
-                  ),
-                ],
-              ),
-            )),
-      ],
-    ),
-  );
-},
+                    child: Column(
+                      children: [
+                        Text(
+                          '${currentDate.day}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: currentDate.month == month
+                                ? Colors.black
+                                : Colors.grey,
+                          ),
+                        ),
+                        ...daySchedules.map((schedule) => Padding(
+                              padding: const EdgeInsets.only(top: 2.0),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: schedule['color'] != null
+                                          ? Color(schedule['color'])
+                                          : Colors.grey,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    schedule['title'],
+                                    style: TextStyle(fontSize: 10),
+                                  ),
+                                ],
+                              ),
+                            )),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
           ],
