@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "745353142339",
+    "project_id": "roseo-e616e",
+    "storage_bucket": "roseo-e616e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:745353142339:android:361c7522d3aa0023c334f6",
+        "android_client_info": {
+          "package_name": "com.example.roseo_study"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlTNl1dsV5cGo1cqMCndPs6mVv02NQTIM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

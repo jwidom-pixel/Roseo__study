@@ -1,0 +1,14 @@
+{
+  "projects": [
+    {
+      "name": "Project 1",
+      "isCompleted": false,
+      "color": "#FF5733"
+    },
+    {
+      "name": "Project 2",
+      "isCompleted": true,
+      "color": "#33FF57"
+    }
+  ]
+}
