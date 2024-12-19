@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:roseo_study/schedule/add_schedule.dart';
@@ -7,28 +6,36 @@ import 'schedule/schedule_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:roseo_study/project/projects.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ScheduleNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   ScheduleNotifier() : super([]) {
-    _fetchSchedules();
+    fetchSchedules(); // 초기화 시 데이터를 로드
   }
 
   // Firestore에서 일정 실시간 가져오기
-  void _fetchSchedules() {
+  void fetchSchedules() {
     FirebaseFirestore.instance
         .collection('schedules')
         .snapshots()
         .listen((snapshot) {
       final schedules = snapshot.docs.map((doc) {
+        final data = doc.data();
         return {
           'id': doc.id,
-          ...doc.data() as Map<String, dynamic>,
+          'title': data['title'] ?? '제목 없음',
+          'startDate': data['startDate'],
+          'endDate': data['endDate'],
+          'color': data['color'] ?? '#000000',
         };
       }).toList();
       state = schedules; // 상태 업데이트
     });
+  }
+
+  // Public 메서드로 초기화 트리거
+  void initializeSchedules() {
+    fetchSchedules();
   }
 }
 
@@ -55,6 +62,11 @@ int getTotalDays(int year, int month) {
   return DateTime(year, month + 1, 0).day; // 해당 월의 총 일 수
 }
 //
+
+final scheduleProvider =
+    StateNotifierProvider<ScheduleNotifier, List<Map<String, dynamic>>>(
+  (ref) => ScheduleNotifier(),
+);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -88,6 +100,12 @@ class _CalendarPageState extends State<CalendarPage> {
   void initState() {
     super.initState();
     fetchCurrentDateFromServer();
+
+    // Firestore 데이터 초기 로드
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final container = ProviderScope.containerOf(context, listen: false);
+      container.read(scheduleProvider.notifier).initializeSchedules(); // 메서드 호출
+    });
   }
 
   Future<void> fetchCurrentDateFromServer() async {
@@ -349,7 +367,7 @@ class ProjectChip extends StatelessWidget {
             ),
           ),
           Text(
-            '$daysLeft}일 남음',
+            '$daysLeft일 남음',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
         ],
@@ -404,11 +422,9 @@ class CalendarGrid extends StatelessWidget {
                   final startWeekday = getStartWeekday(year, month);
                   final totalDays = getTotalDays(year, month);
 
-                  // 현재 날짜 계산
                   DateTime currentDate;
 
                   if (index < startWeekday - 1) {
-                    // 전달 날짜
                     final previousMonth = month == 1 ? 12 : month - 1;
                     final previousYear = month == 1 ? year - 1 : year;
                     final previousMonthTotalDays =
@@ -417,70 +433,136 @@ class CalendarGrid extends StatelessWidget {
                         previousMonthTotalDays - (startWeekday - 2 - index);
                     currentDate = DateTime(previousYear, previousMonth, day);
                   } else if (index >= startWeekday - 1 + totalDays) {
-                    // 다음 달 날짜
                     final day = index - (startWeekday - 1 + totalDays) + 1;
                     final nextMonth = month == 12 ? 1 : month + 1;
                     final nextYear = month == 12 ? year + 1 : year;
                     currentDate = DateTime(nextYear, nextMonth, day);
                   } else {
-                    // 현재 달 날짜
                     final day = index - (startWeekday - 2);
                     currentDate = DateTime(year, month, day);
                   }
 
-                  // currentDate를 사용해 일정을 필터링
                   final daySchedules = schedules.where((schedule) {
-                    final scheduleDate = DateTime.parse(schedule['date']);
-                    return scheduleDate.year == currentDate.year &&
-                        scheduleDate.month == currentDate.month &&
-                        scheduleDate.day == currentDate.day;
+                    final startDateStr = schedule['startDate'] ?? '';
+                    final endDateStr = schedule['endDate'] ?? '';
+                    if (startDateStr.isEmpty || endDateStr.isEmpty)
+                      return false;
+
+                    final startDate = DateTime.tryParse(startDateStr);
+                    final endDate = DateTime.tryParse(endDateStr);
+                    if (startDate == null || endDate == null) return false;
+
+                    return currentDate
+                            .isAfter(startDate.subtract(Duration(days: 1))) &&
+                        currentDate.isBefore(endDate.add(Duration(seconds: 1)));
                   }).toList();
 
-                  // UI 반환
-                  return Container(
-                    alignment: Alignment.topCenter,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                          color: const Color.fromARGB(255, 247, 247, 247)),
-                      color: currentDate.month == month
-                          ? Colors.white
-                          : const Color.fromARGB(255, 250, 250, 250),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          '${currentDate.day}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: currentDate.month == month
-                                ? Colors.black
-                                : Colors.grey,
+                  return Stack(
+                    children: [
+                      // 날짜와 그리드 배경
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              color: const Color.fromARGB(255, 247, 247, 247)),
+                          color: currentDate.month == month
+                              ? Colors.white
+                              : const Color.fromARGB(255, 250, 250, 250),
+                        ),
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: Text(
+                            '${currentDate.day}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: currentDate.month == month
+                                  ? Colors.black
+                                  : Colors.grey,
+                            ),
                           ),
                         ),
-                        ...daySchedules.map((schedule) => Padding(
-                              padding: const EdgeInsets.only(top: 2.0),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: schedule['color'] != null
-                                          ? Color(schedule['color'])
-                                          : Colors.grey,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    schedule['title'],
-                                    style: TextStyle(fontSize: 10),
-                                  ),
-                                ],
+                      ),
+                      // 일정 UI
+                      ...daySchedules
+                          .take(2)
+                          .toList()
+                          .asMap()
+                          .entries
+                          .map((entry) {
+                        final scheduleIndex = entry.key; // 일정 리스트에서의 인덱스
+                        final schedule = entry.value;
+
+                        final startDateStr = schedule['startDate'] ?? '';
+                        final endDateStr = schedule['endDate'] ?? '';
+                        final title = schedule['title'] ?? '제목 없음';
+                        final colorStr = schedule['color'] ?? '#000000';
+
+                        final startDate = DateTime.tryParse(startDateStr);
+                        final endDate = DateTime.tryParse(endDateStr);
+
+                        if (startDate == null || endDate == null)
+                          return SizedBox();
+
+                        final color = Color(
+                          int.parse(colorStr.substring(1, 7), radix: 16) +
+                              0xFF000000,
+                        );
+
+                        final isStartDate = DateTime(currentDate.year,
+                                currentDate.month, currentDate.day)
+                            .isAtSameMomentAs(DateTime(startDate.year,
+                                startDate.month, startDate.day));
+
+                        final isEndDate = DateTime(currentDate.year,
+                                currentDate.month, currentDate.day)
+                            .isAtSameMomentAs(DateTime(
+                                endDate.year, endDate.month, endDate.day));
+
+                        final topOffset =
+                            scheduleIndex * 23.0; // 일정 간의 수직 위치 조정
+
+                        // 첫 번째 열인지 확인 (그리드 셀 인덱스를 사용)
+                        final gridIndex = index; // GridView.builder의 index 전달
+                        final isFirstColumn =
+                            gridIndex % 7 == 0; // 첫 번째 열의 셀은 index % 7 == 0
+
+                        return Positioned(
+                          top: 20 + topOffset, // 일정의 수직 위치 조정
+                          left: isStartDate ? 0 : -2, // 시작 날짜라면 왼쪽 여백 0
+                          right: isEndDate ? 0 : -2, // 종료 날짜라면 오른쪽 여백 0
+                          child: Container(
+                            height: 20, // 일정 높이
+                            decoration: BoxDecoration(
+                              color: color,
+                              borderRadius: BorderRadius.horizontal(
+                                left: isStartDate
+                                    ? Radius.circular(12)
+                                    : Radius.zero,
+                                right: isEndDate
+                                    ? Radius.circular(12)
+                                    : Radius.zero,
                               ),
-                            )),
-                      ],
-                    ),
+                            ),
+                            child: Center(
+                              child: (isStartDate ||
+                                      isFirstColumn) // 시작 날짜 또는 첫 번째 열일 경우 제목 표시
+                                  ? Text(
+                                      title.length > 5
+                                          ? title.substring(0, 5)
+                                          : title, // 제목 5글자로 제한
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    )
+                                  : SizedBox
+                                      .shrink(), // 시작 날짜가 아니고 첫 번째 열도 아니면 빈 위젯
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
                   );
                 },
               ),
