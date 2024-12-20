@@ -39,20 +39,6 @@ class ScheduleNotifier extends StateNotifier<List<Map<String, dynamic>>> {
   }
 }
 
-final Map<int, Map<int, List<Map<String, dynamic>>>> projectDates = {
-  2024: {
-    12: [
-      {'day': 1, 'title': '프로젝트 A', 'color': Colors.purple},
-      {'day': 5, 'title': '프로젝트 B', 'color': Colors.orange},
-      {'day': 15, 'title': '프로젝트 C', 'color': Colors.red},
-    ],
-    11: [
-      {'day': 10, 'title': '프로젝트 D', 'color': Colors.blue},
-      {'day': 20, 'title': '프로젝트 E', 'color': Colors.green},
-    ],
-  },
-};
-
 //일자 표시용 밸류
 int getStartWeekday(int year, int month) {
   return DateTime(year, month, 2).weekday; // 1일의 요일 (일요일=2)
@@ -457,6 +443,30 @@ class CalendarGrid extends StatelessWidget {
                         currentDate.isBefore(endDate.add(Duration(seconds: 1)));
                   }).toList();
 
+                  final sortedSchedules = daySchedules.toList()
+                    ..sort((a, b) {
+                      final aStartDateStr = a['startDate'] ?? '';
+                      final aEndDateStr = a['endDate'] ?? '';
+                      final bStartDateStr = b['startDate'] ?? '';
+                      final bEndDateStr = b['endDate'] ?? '';
+
+                      final aStartDate = DateTime.tryParse(aStartDateStr);
+                      final aEndDate = DateTime.tryParse(aEndDateStr);
+                      final bStartDate = DateTime.tryParse(bStartDateStr);
+                      final bEndDate = DateTime.tryParse(bEndDateStr);
+
+                      final aDuration = aEndDate != null && aStartDate != null
+                          ? aEndDate.difference(aStartDate).inDays
+                          : 0;
+                      final bDuration = bEndDate != null && bStartDate != null
+                          ? bEndDate.difference(bStartDate).inDays
+                          : 0;
+
+                      return bDuration
+                          .compareTo(aDuration); // 긴 일정이 위로 오도록 내림차순 정렬
+                    });
+
+// UI 생성
                   return Stack(
                     children: [
                       // 날짜와 그리드 배경
@@ -481,14 +491,14 @@ class CalendarGrid extends StatelessWidget {
                           ),
                         ),
                       ),
-                      // 일정 UI
-                      ...daySchedules
+                      // 정렬된 일정 UI
+                      ...sortedSchedules
                           .take(2)
                           .toList()
                           .asMap()
                           .entries
                           .map((entry) {
-                        final scheduleIndex = entry.key; // 일정 리스트에서의 인덱스
+                        final scheduleIndex = entry.key; // 일정 리스트에서의 인덱스를 따로 관리
                         final schedule = entry.value;
 
                         final startDateStr = schedule['startDate'] ?? '';
@@ -517,13 +527,13 @@ class CalendarGrid extends StatelessWidget {
                             .isAtSameMomentAs(DateTime(
                                 endDate.year, endDate.month, endDate.day));
 
-                        final topOffset =
-                            scheduleIndex * 23.0; // 일정 간의 수직 위치 조정
-
-                        // 첫 번째 열인지 확인 (그리드 셀 인덱스를 사용)
-                        final gridIndex = index; // GridView.builder의 index 전달
+                        // 첫 번째 열인지 확인 (그리드 셀 인덱스 사용)
                         final isFirstColumn =
-                            gridIndex % 7 == 0; // 첫 번째 열의 셀은 index % 7 == 0
+                            index % 7 == 0; // GridView.builder의 index로 판단
+
+                        // 각 일정의 위치를 위아래로 나누기 위해 top 값 조정
+                        final topOffset =
+                            scheduleIndex * 23.0; // 일정 간의 수직 간격 조정
 
                         return Positioned(
                           top: 20 + topOffset, // 일정의 수직 위치 조정
@@ -544,7 +554,7 @@ class CalendarGrid extends StatelessWidget {
                             ),
                             child: Center(
                               child: (isStartDate ||
-                                      isFirstColumn) // 시작 날짜 또는 첫 번째 열일 경우 제목 표시
+                                      isFirstColumn) // 시작 날짜이거나 첫 번째 열인 경우
                                   ? Text(
                                       title.length > 5
                                           ? title.substring(0, 5)
@@ -556,12 +566,11 @@ class CalendarGrid extends StatelessWidget {
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     )
-                                  : SizedBox
-                                      .shrink(), // 시작 날짜가 아니고 첫 번째 열도 아니면 빈 위젯
+                                  : SizedBox.shrink(), // 조건을 만족하지 않으면 빈 위젯
                             ),
                           ),
                         );
-                      }),
+                      }).toList(),
                     ],
                   );
                 },
