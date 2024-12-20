@@ -1,5 +1,4 @@
 import 'dart:convert'; // For JSON decoding
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,7 +55,7 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
   Future<void> _loadProjects() async {
     try {
       final String response = await DefaultAssetBundle.of(context)
-          .loadString('assets/projects.json');
+          .loadString('assets/projects_label.json');
       final data = json.decode(response);
       setState(() {
         projectList = (data['projects'] as List)
