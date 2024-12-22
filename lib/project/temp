@@ -49,6 +49,13 @@ class _ProjectsPageState extends State<ProjectsPage> {
       NumberFormat.currency(locale: 'ko_KR', symbol: '', decimalDigits: 0);
 
   Future<void> _saveProject() async {
+    if (_titleController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('프로젝트 제목을 입력하세요.')),
+      );
+      return;
+    }
+
     final projectData = {
       'title': _titleController.text,
       'category': _selectedCategory,
@@ -81,6 +88,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
     buffer.write(hexString.replaceFirst('#', ''));
     return Color(int.parse(buffer.toString(), radix: 16));
   }
+
 
   void _clearFields() {
     setState(() {
@@ -301,10 +309,11 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                       decoration: InputDecoration(
                                         // 1. 호버링 텍스트 제거
                                         hintText: _titleController.text.isEmpty
-                                            ? '여기에 프로젝트 제목을 입력해 주세요'
+                                            ? '프로젝트 제목'
                                             : null,
                                         hintStyle: TextStyle(
-                                          color: Colors.grey,
+                                          color: const Color.fromARGB(255, 255,
+                                              255, 255), // 힌트 텍스트 색상 변경
                                           fontSize: 14, // 힌트 텍스트 크기
                                         ),
                                         border: OutlineInputBorder(
@@ -391,7 +400,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                         decoration: BoxDecoration(
                           color: _newProjectLabelColor,
                           borderRadius: BorderRadius.circular(50),
-                          border: Border.all(color: _newProjectLabelColor),
+                          border: Border.all(color: Colors.black54),
                         ),
                       ),
                       // 텍스트 (TextField와 동기화)
@@ -444,115 +453,84 @@ class _ProjectsPageState extends State<ProjectsPage> {
                   maxLength: 500,
                   maxLines: 3,
                   decoration: InputDecoration(
-                    labelText: '프로젝트 내용',
-                    labelStyle: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14, // 힌트 텍스트 크기
+                    label: Center(
+                      // 라벨 텍스트를 직접 중앙 정렬
+                      child: Text(
+                        '프로젝트 내용',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14, // 라벨 텍스트 크기
+                        ),
+                      ),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20), // 모서리 둥글게
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20), // 모서리 둥글게
-                      borderSide: BorderSide(
-                        color: _newProjectLabelColor, // 비활성화 상태 보더 색상
-                        width: 1.0, // 비활성화 상태 보더 두께
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20), // 모서리 둥글게
-                      borderSide: BorderSide(
-                        color: _newProjectLabelColor, // 포커스 상태 보더 색상
-                        width: 2.0, // 포커스 상태 보더 두께
-                      ),
-                    ),
                   ),
-                  textAlign: TextAlign.start,
+                  textAlign: TextAlign.center, // 텍스트 수평 가운데 정렬
                 ),
+                
                 SizedBox(height: 16),
                 TextField(
                   controller: _clientController,
                   maxLength: 20,
                   decoration: InputDecoration(
-                    labelText: '클라이언트',
-                    labelStyle: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14, // 힌트 텍스트 크기
+                    label: Center(
+                      // 라벨 텍스트를 직접 중앙 정렬
+                      child: Text(
+                        '클라이언트',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14, // 라벨 텍스트 크기
+                        ),
+                      ),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20), // 모서리 둥글게
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20), // 모서리 둥글게
-                      borderSide: BorderSide(
-                        color: _newProjectLabelColor, // 비활성화 상태 보더 색상
-                        width: 1.0, // 비활성화 상태 보더 두께
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20), // 모서리 둥글게
-                      borderSide: BorderSide(
-                        color: _newProjectLabelColor, // 포커스 상태 보더 색상
-                        width: 2.0, // 포커스 상태 보더 두께
-                      ),
-                    ),
                   ),
-                  textAlign: TextAlign.start,
+                  textAlign: TextAlign.center, // 텍스트 수평 가운데 정렬
                 ),
                 SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: TextField(
-                        controller: _revenueController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly
-                        ],
-                        decoration: InputDecoration(
-                          labelText: '프로젝트 수익',
-                          labelStyle: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 14, // 힌트 텍스트 크기
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(20), // 기본 보더 둥글게
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(20), // 비활성화 상태 모서리 둥글게
-                            borderSide: BorderSide(
-                              color: _newProjectLabelColor, // 비활성화 상태 보더 색상
-                              width: 1.0, // 비활성화 상태 보더 두께
+                          controller: _revenueController,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                          decoration: InputDecoration(
+                            label: Center(
+                              // 라벨 텍스트를 중앙 정렬
+                              child: Text(
+                                '프로젝트 수익',
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 14, // 라벨 텍스트 크기
+                                ),
+                              ),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(50), // 모서리 둥글게
                             ),
                           ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(20), // 포커스 상태 모서리 둥글게
-                            borderSide: BorderSide(
-                              color: _newProjectLabelColor, // 포커스 상태 보더 색상
-                              width: 2.0, // 포커스 상태 보더 두께
-                            ),
-                          ),
-                          contentPadding:
-                              EdgeInsets.fromLTRB(20, 8, 20, 8), // 내부 패딩
-                        ),
-                        onChanged: (value) {
-                          String newValue = value.replaceAll(',', '');
-                          if (int.tryParse(newValue) != null) {
-                            setStateDialog(() {
-                              _revenueController.text =
-                                  currencyFormatter.format(int.parse(newValue));
-                              _revenueController.selection =
-                                  TextSelection.collapsed(
-                                offset: _revenueController.text.length,
-                              );
-                            });
-                          }
-                        },
-                        textAlign: TextAlign.right, // 입력 텍스트 오른쪽 정렬
-                      ),
+                          onChanged: (value) {
+                            String newValue = value.replaceAll(',', '');
+                            if (int.tryParse(newValue) != null) {
+                              setStateDialog(() {
+                                _revenueController.text = currencyFormatter
+                                    .format(int.parse(newValue));
+                                _revenueController.selection =
+                                    TextSelection.collapsed(
+                                  offset: _revenueController.text.length,
+                                );
+                              });
+                            }
+                          },
+                          textAlign: TextAlign.right),
                     ),
                     SizedBox(width: 8),
                     DropdownButton<String>(
@@ -582,74 +560,21 @@ class _ProjectsPageState extends State<ProjectsPage> {
               },
               child: Text('취소'),
             ),
-            GestureDetector(
-              onTap: () {
-                if (!_isSaveButtonEnabled) {
-                  // 하단 팝업 표시
-                  showModalBottomSheet(
-                    context: context,
-                    backgroundColor: Colors.transparent, // 배경 투명화
-                    builder: (context) {
-                      // 1초 후 팝업 닫기
-                      Future.delayed(Duration(milliseconds: 1300), () {
-                        if (Navigator.of(context).canPop()) {
-                          Navigator.of(context).pop(); // 팝업 닫기
-                        }
-                      });
-                      return Container(
-                        margin: EdgeInsets.all(30),
-                        padding: EdgeInsets.fromLTRB(30, 16, 30, 16), // 내부 여백
-                        decoration: BoxDecoration(
-                          color: Colors.white, // 팝업 배경색
-                          borderRadius: BorderRadius.circular(30), // 둥근 모서리
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 10,
-                              offset: Offset(0, -2), // 그림자 위치
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min, // 팝업 높이를 내용에 맞게 최소화
-                          children: [
-                            Text(
-                              '프로젝트 제목을 입력해 주세요.',
-                              textAlign: TextAlign.center, // 텍스트 정 가운데 정렬
-                              style: TextStyle(fontSize: 16), // 텍스트 스타일 설정
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                }
-              },
-              child: ElevatedButton(
-                onPressed: _isSaveButtonEnabled
-                    ? () {
-                        Navigator.of(context).pop();
-                        _saveProject();
-                      }
-                    : null, // 비활성화 상태 처리
-                style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.resolveWith((states) {
-                    if (states.contains(MaterialState.disabled)) {
-                      return Colors.grey; // 비활성화 상태 색상
+            ElevatedButton(
+              onPressed: _isSaveButtonEnabled
+                  ? () {
+                      Navigator.of(context).pop();
+                      _saveProject();
                     }
-                    return _newProjectLabelColor; // 활성화 상태 색상
-                  }),
-                  foregroundColor: MaterialStateProperty.resolveWith((states) {
-                    if (states.contains(MaterialState.disabled)) {
-                      return Colors.white; // 비활성화 상태 텍스트 색상
-                    }
-                    return Colors.white; // 활성화 상태 텍스트 색상
-                  }),
-                ),
-                child: Text(
-                  '저장',
-                  style: TextStyle(color: Colors.white),
-                ),
+                  : null, // 저장 버튼 비활성화 조건
+              child: Text('저장', style: TextStyle(color: Colors.white)),
+              style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.resolveWith((states) {
+                  if (states.contains(MaterialState.disabled)) {
+                    return Colors.grey; // 비활성화 상태 색상
+                  }
+                  return _newProjectLabelColor; // 활성화 상태 색상
+                }),
               ),
             ),
           ],
