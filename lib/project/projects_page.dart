@@ -286,7 +286,6 @@ class _ProjectsPageState extends State<ProjectsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-//
                 GestureDetector(
                   onTap: () async {
                     final newLabel = await showDialog<NewLabel>(
@@ -386,10 +385,14 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                   child: Text('취소'),
                                 ),
                                 ElevatedButton(
+                                  style: ButtonStyle(
+                                      backgroundColor:
+                                          MaterialStateProperty.all(
+                                              tempColor ?? const Color.fromARGB(255, 65, 65, 65))),
                                   onPressed: () {
-                                    //여기서 tempColor와 textController.text를 전달하도록 지정하는 것 중요함
-                                    Navigator.of(context).pop(NewLabel(
-                                        tempColor, textController.text));
+                                    Navigator.of(context).pop(
+                                      NewLabel(tempColor, textController.text),
+                                    );
                                     // 다이얼로그 닫기
                                   },
                                   child: Text('확인'),
@@ -437,7 +440,6 @@ class _ProjectsPageState extends State<ProjectsPage> {
                     ],
                   ),
                 ),
-
                 SizedBox(height: 16),
                 Text('프로젝트 성격', style: TextStyle(fontSize: 16)),
                 SizedBox(height: 8),
