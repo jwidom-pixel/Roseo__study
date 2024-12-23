@@ -277,13 +277,17 @@ class _ProjectsPageState extends State<ProjectsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+//
                 GestureDetector(
+                  
                   onTap: () {
                     showDialog(
                       context: context,
                       builder: (context) {
                         Color tempColor =
                             _newProjectLabelColor; // 다이얼로그에서만 사용하는 색상
+                            String tempTitle = _titleController.text; // 다이얼로그에서만 사용하는 제목
+                            
                         return StatefulBuilder(
                           builder: (context, setStateDialog) {
                             return AlertDialog(
@@ -297,7 +301,19 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                   children: [
                                     // TextField 입력 (텍스트 상태 관리)
                                     TextField(
-                                      controller: _titleController,
+                                      controller: TextEditingController.fromValue(
+                        TextEditingValue(
+                          text: tempTitle,
+                          selection: TextSelection.collapsed(
+                            offset: tempTitle.length,
+                          ),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setStateDialog(() {
+                          tempTitle = value; // 로컬 상태 업데이트
+                        });
+                      },
                                       decoration: InputDecoration(
                                         // 1. 호버링 텍스트 제거
                                         hintText: _titleController.text.isEmpty
@@ -335,10 +351,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                       ),
                                       textAlign:
                                           TextAlign.center, // 3. 텍스트 가운데 정렬
-                                      onChanged: (value) {
-                                        setStateDialog(
-                                            () {}); // 텍스트 변경 시 UI 업데이트
-                                      },
+                                     
                                     ),
 
                                     SizedBox(height: 16),
@@ -364,11 +377,13 @@ class _ProjectsPageState extends State<ProjectsPage> {
 //문제되는 줄
                                 ElevatedButton(
                                   onPressed: () {
+                                    Navigator.of(context).pop(); // 다이얼로그 닫기
                                     setState(() {
                                       _newProjectLabelColor =
                                           tempColor; // 최종 색상 업데이트
+                                          _titleController.text = tempTitle; // 부모 상태 제목 업데이트
+                                      setState(() {});
                                     });
-                                    Navigator.of(context).pop(); // 다이얼로그 닫기
                                   },
                                   child: Text('확인'),
                                 ),
@@ -408,6 +423,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                     ],
                   ),
                 ),
+
                 SizedBox(height: 16),
                 Text('프로젝트 성격', style: TextStyle(fontSize: 16)),
                 SizedBox(height: 8),
