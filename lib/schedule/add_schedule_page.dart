@@ -55,16 +55,16 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
   Future<void> _loadProjects() async {
     try {
       final String response = await DefaultAssetBundle.of(context)
-          .loadString('assets/projects.json');
+          .loadString('assets/projects_label.json');
       final data = json.decode(response);
       setState(() {
         projectList = (data['projects'] as List)
             .map((json) => Project.fromJson(json))
             .toList();
       });
-      print("프로젝트 로드 성공: ${projectList.length}개 프로젝트");
+      debugPrint("프로젝트 로드 성공: ${projectList.length}개 프로젝트");
     } catch (e) {
-      print("프로젝트 로드 오류: ${e.toString()}");
+      debugPrint("프로젝트 로드 오류: ${e.toString()}");
     }
   }
 
@@ -80,17 +80,24 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
 
               return ElevatedButton(
                 onPressed: () async {
-                  if (endDate != null && startDate != null && endDate!.isBefore(startDate!)) {
+                  if (endDate != null &&
+                      startDate != null &&
+                      endDate!.isBefore(startDate!)) {
                     setState(() {
                       startDate = endDate;
                     });
                   }
 
                   final newSchedule = {
-                    'title': titleController.text,
+                    'title': titleController.text.isEmpty
+                        ? '제목 없음'
+                        : titleController.text,
                     'type': selectedType,
-                    'label': selectedLabel,
-                    'date': (startDate ?? DateTime.now()).toIso8601String(),
+                    'label': selectedLabel ?? '라벨 없음',
+                    'startDate':
+                        (startDate ?? DateTime.now()).toIso8601String(),
+                    'endDate': (endDate ?? startDate ?? DateTime.now())
+                        .toIso8601String(),
                     'isAllDay': isAllDay,
                     'color': selectedType == '프로젝트'
                         ? '#${projectList.firstWhere(
@@ -103,23 +110,26 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
                         : '#${Colors.grey.value.toRadixString(16).padLeft(8, '0').substring(2)}',
                   };
 
-                  print("전송하려는 데이터: ${jsonEncode(newSchedule)}");
+                  debugPrint("전송하려는 데이터: ${jsonEncode(newSchedule)}");
 
                   try {
-                    print("Firestore 저장 시작...");
+                    debugPrint("Firestore 저장 시작...");
                     await ScheduleService.addSchedule(newSchedule);
-                    print("Firestore 저장 성공");
+                    debugPrint("Firestore 저장 성공");
 
-                    ref.read(scheduleProvider.notifier).saveSchedule(newSchedule);
+                    // 상태 업데이트는 저장 성공 후에만 실행
+                    ref
+                        .read(scheduleProvider.notifier)
+                        .saveSchedule(newSchedule);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('저장 완료!')),
                     );
                     Navigator.pop(context);
                   } catch (error, stackTrace) {
-                    print("Firestore 저장 오류: $error");
-                    print("StackTrace: $stackTrace");
+                    debugPrint("Firestore 저장 오류: $error");
+                    debugPrint("StackTrace: $stackTrace");
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Firestore 저장 실패: $error')),
+                      SnackBar(content: Text('저장에 실패했습니다. 다시 시도해주세요.')),
                     );
                   }
                 },
