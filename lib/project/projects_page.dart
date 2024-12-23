@@ -4,6 +4,15 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 
+// 모델 클래스 생성 (그룹화)
+class NewLabel {
+  final Color color;
+  final String label;
+
+  NewLabel(this.color, this.label);
+}
+//
+
 class ProjectsPage extends StatefulWidget {
   @override
   _ProjectsPageState createState() => _ProjectsPageState();
@@ -279,17 +288,27 @@ class _ProjectsPageState extends State<ProjectsPage> {
               children: [
 //
                 GestureDetector(
-                  
-                  onTap: () {
-                    showDialog(
+                  onTap: () async {
+                    final newLabel = await showDialog<NewLabel>(
                       context: context,
                       builder: (context) {
                         Color tempColor =
                             _newProjectLabelColor; // 다이얼로그에서만 사용하는 색상
-                            String tempTitle = _titleController.text; // 다이얼로그에서만 사용하는 제목
-                            
+                        String tempTitle =
+                            _titleController.text; // 다이얼로그에서만 사용하는 제목
+
                         return StatefulBuilder(
                           builder: (context, setStateDialog) {
+                            final textController =
+                                TextEditingController.fromValue(
+                              TextEditingValue(
+                                text: tempTitle,
+                                selection: TextSelection.collapsed(
+                                  offset: tempTitle.length,
+                                ),
+                              ),
+                            );
+
                             return AlertDialog(
                               title: Text('프로젝트 제목 및 라벨 컬러',
                                   style: TextStyle(
@@ -301,19 +320,12 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                   children: [
                                     // TextField 입력 (텍스트 상태 관리)
                                     TextField(
-                                      controller: TextEditingController.fromValue(
-                        TextEditingValue(
-                          text: tempTitle,
-                          selection: TextSelection.collapsed(
-                            offset: tempTitle.length,
-                          ),
-                        ),
-                      ),
-                      onChanged: (value) {
-                        setStateDialog(() {
-                          tempTitle = value; // 로컬 상태 업데이트
-                        });
-                      },
+                                      controller: textController,
+                                      onChanged: (value) {
+                                        setStateDialog(() {
+                                          tempTitle = value; // 로컬 상태 업데이트
+                                        });
+                                      },
                                       decoration: InputDecoration(
                                         // 1. 호버링 텍스트 제거
                                         hintText: _titleController.text.isEmpty
@@ -351,7 +363,6 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                       ),
                                       textAlign:
                                           TextAlign.center, // 3. 텍스트 가운데 정렬
-                                     
                                     ),
 
                                     SizedBox(height: 16),
@@ -374,26 +385,29 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                   },
                                   child: Text('취소'),
                                 ),
-//문제되는 줄
                                 ElevatedButton(
                                   onPressed: () {
-                                    Navigator.of(context).pop(); // 다이얼로그 닫기
-                                    setState(() {
-                                      _newProjectLabelColor =
-                                          tempColor; // 최종 색상 업데이트
-                                          _titleController.text = tempTitle; // 부모 상태 제목 업데이트
-                                      setState(() {});
-                                    });
+                                    //여기서 tempColor와 textController.text를 전달하도록 지정하는 것 중요함
+                                    Navigator.of(context).pop(NewLabel(
+                                        tempColor, textController.text));
+                                    // 다이얼로그 닫기
                                   },
                                   child: Text('확인'),
                                 ),
-//
                               ],
                             );
                           },
                         );
                       },
                     );
+
+                    if (newLabel == null) {
+                      return;
+                    }
+                    setStateDialog(() {
+                      _newProjectLabelColor = newLabel.color; // 최종 색상 업데이트
+                      _titleController.text = newLabel.label; // 부모 상태 제목 업데이트
+                    });
                   },
                   child: // 겹쳐진 위젯 구조로 컨테이너와 텍스트 관리
                       Stack(
