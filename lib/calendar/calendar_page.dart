@@ -6,6 +6,90 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:roseo_study/project/projects_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class MainPage extends StatefulWidget {
+  @override
+  _MainPageState createState() => _MainPageState();
+}
+
+class _MainPageState extends State<MainPage> {
+  int _currentIndex = 1; // 초기 선택된 인덱스 (캘린더 페이지)
+
+  final List<Widget> _pages = [
+    ProjectsPage(), // 프로젝트 페이지
+    CalendarPage(), // 캘린더 페이지
+    Placeholder(), // 세 번째 페이지 (예: 설정 페이지)
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        selectedItemColor: null, // 선택된 텍스트 색상이 이 값에 영향을 받지 않도록 설정
+        unselectedItemColor: Colors.grey, // 선택되지 않은 아이템 색상
+        selectedLabelStyle: TextStyle(
+          color: Color.fromARGB(255, 65, 65, 65), // 원하는 선택된 텍스트 색상
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          height: 2,
+        ),
+        unselectedLabelStyle: TextStyle(
+          color: const Color.fromARGB(255, 100, 100, 100), // 선택되지 않은 텍스트 색상
+          fontSize: 12,
+          height: 0,
+        ),
+        items: [
+          BottomNavigationBarItem(
+            icon: Container(
+              decoration: BoxDecoration(
+                color: _currentIndex == 0 ? Colors.black : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
+              padding: EdgeInsets.all(8),
+              child: Icon(Icons.list,
+                  color: _currentIndex == 0 ? Colors.white : Colors.grey),
+            ),
+            label: '프로젝트',
+          ),
+          BottomNavigationBarItem(
+            icon: Container(
+              decoration: BoxDecoration(
+                color: _currentIndex == 1 ? Colors.black : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
+              padding: EdgeInsets.all(8),
+              child: Icon(Icons.calendar_today,
+                  color: _currentIndex == 1 ? Colors.white : Colors.grey),
+            ),
+            label: '캘린더',
+          ),
+          BottomNavigationBarItem(
+            icon: Container(
+              decoration: BoxDecoration(
+                color: _currentIndex == 2 ? Colors.black : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
+              padding: EdgeInsets.all(8),
+              child: Icon(Icons.settings,
+                  color: _currentIndex == 2 ? Colors.white : Colors.grey),
+            ),
+            label: '설정',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 final scheduleProvider =
     StateNotifierProvider<ScheduleNotifier, List<Map<String, dynamic>>>(
   (ref) => ScheduleNotifier(),
@@ -51,7 +135,6 @@ int getTotalDays(int year, int month) {
   return DateTime(year, month + 1, 0).day; // 해당 월의 총 일 수
 }
 //
-
 
 class CalendarPage extends StatefulWidget {
   @override
@@ -270,36 +353,6 @@ class _CalendarPageState extends State<CalendarPage> {
         backgroundColor: Colors.black,
         shape: CircleBorder(),
         child: Icon(Icons.add, color: Colors.white),
-      ),
-
-      // 하단 네비게이션
-      bottomNavigationBar: BottomNavigationBar(
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list),
-            label: '프로젝트 보기',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today, size: 40, color: Colors.blue),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: '설정',
-          ),
-        ],
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ProjectsPage()),
-            );
-          } else if (index == 1) {
-            // 캘린더 버튼은 현재 화면 유지
-          } else if (index == 2) {
-            // 설정 페이지로 이동하도록 구현
-          }
-        },
       ),
     );
   }

@@ -47,10 +47,21 @@ class MyApp extends StatelessWidget {
             foregroundColor: Color.fromARGB(255, 65, 65, 65), // 버튼 텍스트 색상
           ),
         ),
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          selectedItemColor: Color.fromARGB(255, 65, 65, 65), // 선택된 텍스트 색상
+          unselectedItemColor: Colors.grey, // 선택되지 않은 텍스트 색상
+          selectedLabelStyle: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+          unselectedLabelStyle: TextStyle(
+            fontWeight: FontWeight.normal,
+          ),
+        ),
       ),
       //
+
       debugShowCheckedModeBanner: false,
-      home: CalendarPage(),
+      home: MainPage(),
     );
   }
 }

@@ -282,7 +282,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                               fontSize: 16,
                               color: project['description'] != null &&
                                       project['description'].isNotEmpty
-                                  ? labelColor
+                                  ? Color.fromARGB(255, 65, 65, 65)
                                   : Colors.grey[500], // 기본 메시지는 흐린 색상
                             ),
                           ),
