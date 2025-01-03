@@ -268,6 +268,7 @@ class _CalendarPageState extends State<CalendarPage> {
           );
         },
         backgroundColor: Colors.black,
+        shape: CircleBorder(),
         child: Icon(Icons.add, color: Colors.white),
       ),
 

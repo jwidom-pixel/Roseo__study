@@ -28,9 +28,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
 
     // 제목 필드 변경 감지
     _titleController.addListener(() {
-      setState(() {
-        _isSaveButtonEnabled = _titleController.text.isNotEmpty; // 제목이 비어있는지 확인
-      });
+      _isSaveButtonEnabled = _titleController.text.isNotEmpty; // 제목이 비어있는지 확인
     });
   }
 
@@ -59,6 +57,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
 
   Future<void> _saveProject() async {
     final projectData = {
+      'createdAt': DateTime.now().toIso8601String(),
       'title': _titleController.text,
       'category': _selectedCategory,
       'lastProjectDate': _lastProjectDate?.toIso8601String() ?? '',
@@ -72,13 +71,83 @@ class _ProjectsPageState extends State<ProjectsPage> {
 
     try {
       await FirebaseFirestore.instance.collection('projects').add(projectData);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('프로젝트가 저장되었습니다.')),
+      // 성공 메시지 다이얼로그 표시
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent, // 배경 투명화
+        barrierColor: Colors.transparent,
+        builder: (context) {
+          // 1초 후 팝업 닫기
+          Future.delayed(Duration(milliseconds: 1300), () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop(); // 팝업 닫기
+            }
+          });
+          return Container(
+            margin: EdgeInsets.all(30),
+            padding: EdgeInsets.fromLTRB(30, 16, 30, 16), // 내부 여백
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(230), // 팝업 배경색
+              borderRadius: BorderRadius.circular(30), // 둥근 모서리
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, -2), // 그림자 위치
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // 팝업 높이를 내용에 맞게 최소화
+              children: [
+                Text(
+                  '새로운 프로젝트가 생성되었습니다.',
+                  textAlign: TextAlign.center, // 텍스트 정 가운데 정렬
+                  style: TextStyle(fontSize: 16), // 텍스트 스타일 설정
+                ),
+              ],
+            ),
+          );
+        },
       );
       _clearFields();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('프로젝트 저장에 실패했습니다: $e')),
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent, // 배경 투명화
+        builder: (context) {
+          // 1초 후 팝업 닫기
+          Future.delayed(Duration(milliseconds: 1300), () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop(); // 팝업 닫기
+            }
+          });
+          return Container(
+            margin: EdgeInsets.all(30),
+            padding: EdgeInsets.fromLTRB(30, 16, 30, 16), // 내부 여백
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(230), // 팝업 배경색
+              borderRadius: BorderRadius.circular(30), // 둥근 모서리
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, -2), // 그림자 위치
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // 팝업 높이를 내용에 맞게 최소화
+              children: [
+                Text(
+                  '새로운 프로젝트 생성에 실패했습니다.',
+                  textAlign: TextAlign.center, // 텍스트 정 가운데 정렬
+                  style: TextStyle(fontSize: 16), // 텍스트 스타일 설정
+                ),
+              ],
+            ),
+          );
+        },
       );
     }
   }
@@ -111,7 +180,10 @@ class _ProjectsPageState extends State<ProjectsPage> {
         title: Text('프로젝트 관리'),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('projects').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('projects')
+            .orderBy('createdAt', descending: true) // 생성일시 기준 내림차순 정렬
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
@@ -267,7 +339,9 @@ class _ProjectsPageState extends State<ProjectsPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddProjectDialog(context),
-        child: Icon(Icons.add),
+        backgroundColor: Colors.black,
+        shape: CircleBorder(),
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -319,7 +393,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                   children: [
                                     // TextField 입력 (텍스트 상태 관리)
                                     TextField(
-                                      controller: textController,
+                                      controller: _titleController,
                                       onChanged: (value) {
                                         setStateDialog(() {
                                           tempTitle = value; // 로컬 상태 업데이트
@@ -387,8 +461,9 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                 ElevatedButton(
                                   style: ButtonStyle(
                                       backgroundColor:
-                                          MaterialStateProperty.all(
-                                              tempColor ?? const Color.fromARGB(255, 65, 65, 65))),
+                                          MaterialStateProperty.all(tempColor ??
+                                              const Color.fromARGB(
+                                                  255, 65, 65, 65))),
                                   onPressed: () {
                                     Navigator.of(context).pop(
                                       NewLabel(tempColor, textController.text),
