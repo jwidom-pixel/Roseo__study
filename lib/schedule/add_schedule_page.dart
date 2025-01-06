@@ -4,6 +4,10 @@ import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'schedule_provider.dart';
 import 'add_schedule_service.dart';
+import 'package:roseo_study/widgets/hex_to_color.dart';
+
+
+
 
 class AddSchedulePage extends StatefulWidget {
   @override
@@ -11,25 +15,29 @@ class AddSchedulePage extends StatefulWidget {
 }
 
 class Project {
+  final String id; // Firestore 문서 ID
   final String name;
   final bool isCompleted;
   final Color color;
 
   Project({
+    required this.id,
     required this.name,
     required this.isCompleted,
     required this.color,
   });
 
-  factory Project.fromJson(Map<String, dynamic> json) {
+  factory Project.fromFirebase(String id, Map<String, dynamic> data) {
+    final labelColor = hexToColor(data['labelColor'] ?? '#FF000000');
     return Project(
-      name: json['name'],
-      isCompleted: json['isCompleted'],
-      color: Color(
-          int.parse(json['color'].substring(1, 7), radix: 16) + 0xFF000000),
+      id: id, // Firestore 문서 ID 저장
+      name: data['title'] ?? '',
+      isCompleted: data['isCompleted'] ?? false,
+      color: labelColor,
     );
   }
 }
+
 
 class _AddSchedulePageState extends State<AddSchedulePage> {
   String selectedType = '일정'; // Default selected type
@@ -49,20 +57,18 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
     final now = DateTime.now();
     startDate = now;
     endDate = now.add(Duration(hours: 1));
-    _loadProjects(); // JSON 데이터를 로드
+    _loadProjects(); // Firestore에서 프로젝트 데이터를 로드
   }
 
   Future<void> _loadProjects() async {
     try {
-      final String response = await DefaultAssetBundle.of(context)
-          .loadString('assets/projects_label.json');
-      final data = json.decode(response);
+      final projects = await ScheduleService.fetchProjects();
       setState(() {
-        projectList = (data['projects'] as List)
-            .map((json) => Project.fromJson(json))
-            .toList();
+        // isCompleted가 false인 프로젝트만 필터링
+        projectList =
+            projects.where((project) => !project.isCompleted).toList();
       });
-      debugPrint("프로젝트 로드 성공: ${projectList.length}개 프로젝트");
+      debugPrint("로드된 유효한 프로젝트: ${projectList.length}개");
     } catch (e) {
       debugPrint("프로젝트 로드 오류: ${e.toString()}");
     }
@@ -80,35 +86,30 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
 
               return ElevatedButton(
                 onPressed: () async {
-                  if (endDate != null &&
-                      startDate != null &&
-                      endDate!.isBefore(startDate!)) {
-                    setState(() {
-                      startDate = endDate;
-                    });
-                  }
+  if (endDate != null && startDate != null && endDate!.isBefore(startDate!)) {
+    setState(() {
+      startDate = endDate;
+    });
+  }
 
-                  final newSchedule = {
-                    'title': titleController.text.isEmpty
-                        ? '제목 없음'
-                        : titleController.text,
-                    'type': selectedType,
-                    'label': selectedLabel ?? '라벨 없음',
-                    'startDate':
-                        (startDate ?? DateTime.now()).toIso8601String(),
-                    'endDate': (endDate ?? startDate ?? DateTime.now())
-                        .toIso8601String(),
-                    'isAllDay': isAllDay,
-                    'color': selectedType == '프로젝트'
-                        ? '#${projectList.firstWhere(
-                              (project) => project.name == selectedLabel,
-                              orElse: () => Project(
-                                  name: '',
-                                  isCompleted: false,
-                                  color: Colors.grey),
-                            ).color.value.toRadixString(16).padLeft(8, '0').substring(2)}'
-                        : '#${Colors.grey.value.toRadixString(16).padLeft(8, '0').substring(2)}',
-                  };
+  final selectedProject = projectList.firstWhereOrNull(
+    (project) => project.name == selectedLabel,
+  );
+
+  final newSchedule = {
+    'title': titleController.text.isEmpty ? '제목 없음' : titleController.text,
+    'type': selectedType,
+    'projectId': selectedProject?.id ?? '', // 프로젝트 ID 저장
+    'startDate': isAllDay
+        ? DateTime(startDate!.year, startDate!.month, startDate!.day, 0, 0, 0)
+            .toIso8601String()
+        : (startDate ?? DateTime.now()).toIso8601String(),
+    'endDate': isAllDay
+        ? DateTime(endDate!.year, endDate!.month, endDate!.day, 23, 59, 59)
+            .toIso8601String()
+        : (endDate ?? startDate ?? DateTime.now()).toIso8601String(),
+    'isAllDay': isAllDay,
+  };
 
                   debugPrint("전송하려는 데이터: ${jsonEncode(newSchedule)}");
 
@@ -169,33 +170,41 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
                     Text('종일', style: TextStyle(fontSize: 16)),
                     Spacer(),
                     Switch(
-                      value: isAllDay,
-                      onChanged: (value) {
-                        setState(() {
-                          isAllDay = value;
-                        });
-                      },
-                    ),
+  value: isAllDay,
+  onChanged: (value) {
+    setState(() {
+      isAllDay = value;
+      if (isAllDay) {
+        // 시작일자와 종료일자의 시간 초기화
+        startDate = DateTime(startDate!.year, startDate!.month, startDate!.day, 0, 0, 0);
+        if (endDate != null) {
+          endDate = DateTime(endDate!.year, endDate!.month, endDate!.day, 23, 59, 59);
+        }
+      }
+    });
+  },
+),
+
                   ],
                 ),
                 SizedBox(height: 16),
                 _buildDateTimePicker('시작', startDate, (date) {
-                  setState(() {
-                    startDate = date;
-                    if (endDate != null && endDate!.isBefore(startDate!)) {
-                      endDate = startDate;
-                    }
-                  });
-                }),
-                if (!isAllDay)
-                  _buildDateTimePicker('종료', endDate, (date) {
-                    setState(() {
-                      endDate = date;
-                      if (endDate!.isBefore(startDate!)) {
-                        startDate = endDate;
-                      }
-                    });
-                  }),
+  setState(() {
+    startDate = date;
+    if (endDate != null && endDate!.isBefore(startDate!)) {
+      endDate = startDate; // 종료일자가 시작일자보다 빠를 경우 동기화
+    }
+  });
+}),
+_buildDateTimePicker('종료', endDate, (date) {
+  setState(() {
+    endDate = date;
+    if (endDate!.isBefore(startDate!)) {
+      startDate = endDate; // 시작일자가 종료일자보다 느릴 경우 동기화
+    }
+  });
+}),
+
                 SizedBox(height: 16),
               ],
             ),
@@ -261,14 +270,17 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
   }
 
   Widget _buildProjectDropdown() {
+    if (projectList.isEmpty) {
+      return Text('프로젝트 데이터를 로드 중입니다...');
+    }
+
     return DropdownButtonFormField<Project>(
       decoration: InputDecoration(
         border: OutlineInputBorder(),
       ),
       value: projectList
           .firstWhereOrNull((project) => project.name == selectedLabel),
-      items:
-          projectList.where((project) => !project.isCompleted).map((project) {
+      items: projectList.map((project) {
         return DropdownMenuItem<Project>(
           value: project,
           child: Row(
@@ -295,38 +307,51 @@ class _AddSchedulePageState extends State<AddSchedulePage> {
     );
   }
 
-  Widget _buildDateTimePicker(
-      String label, DateTime? date, ValueChanged<DateTime> onDateSelected) {
-    return Row(
-      children: [
-        Text(label, style: TextStyle(fontSize: 16)),
-        Spacer(),
-        TextButton(
-          onPressed: () async {
-            final pickedDate = await showDatePicker(
-              context: context,
-              initialDate: date ?? DateTime.now(),
-              firstDate: DateTime(2023),
-              lastDate: DateTime(2100),
-            );
-            if (pickedDate != null) {
+  Widget _buildDateTimePicker(String label, DateTime? date, ValueChanged<DateTime> onDateSelected) {
+  return Row(
+    children: [
+      Text(label, style: TextStyle(fontSize: 16)),
+      Spacer(),
+      TextButton(
+        onPressed: () async {
+          final pickedDate = await showDatePicker(
+            context: context,
+            initialDate: date ?? DateTime.now(),
+            firstDate: DateTime(2023),
+            lastDate: DateTime(2100),
+          );
+          if (pickedDate != null) {
+            if (isAllDay) {
+              // 시간 초기화
+              onDateSelected(DateTime(pickedDate.year, pickedDate.month, pickedDate.day));
+            } else {
+              // 시간 포함
               final pickedTime = await showTimePicker(
                 context: context,
                 initialTime: TimeOfDay.fromDateTime(date ?? DateTime.now()),
               );
               if (pickedTime != null) {
-                onDateSelected(DateTime(pickedDate.year, pickedDate.month,
-                    pickedDate.day, pickedTime.hour, pickedTime.minute));
+                onDateSelected(DateTime(
+                  pickedDate.year,
+                  pickedDate.month,
+                  pickedDate.day,
+                  pickedTime.hour,
+                  pickedTime.minute,
+                ));
               }
             }
-          },
-          child: Text(
-            date != null
-                ? '${date.year}-${date.month}-${date.day} ${date.hour}:${date.minute.toString().padLeft(2, '0')}'
-                : '날짜 및 시간 선택',
-          ),
+          }
+        },
+        child: Text(
+          date != null
+              ? isAllDay
+                  ? '${date.year}-${date.month}-${date.day}' // '종일' 활성화 시 시간 제외
+                  : '${date.year}-${date.month}-${date.day} ${date.hour}:${date.minute.toString().padLeft(2, '0')}'
+              : '날짜 및 시간 선택',
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
+
 }

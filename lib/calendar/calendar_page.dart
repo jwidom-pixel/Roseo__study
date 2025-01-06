@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -5,6 +6,7 @@ import 'package:roseo_study/schedule/add_schedule_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:roseo_study/project/projects_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:roseo_study/widgets/hex_to_color.dart';
 
 class MainPage extends StatefulWidget {
   @override
@@ -105,18 +107,47 @@ class ScheduleNotifier extends StateNotifier<List<Map<String, dynamic>>> {
     FirebaseFirestore.instance
         .collection('schedules')
         .snapshots()
-        .listen((snapshot) {
-      final schedules = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'title': data['title'] ?? '제목 없음',
-          'startDate': data['startDate'],
-          'endDate': data['endDate'],
-          'color': data['color'] ?? '#000000',
-        };
-      }).toList();
-      state = schedules; // 상태 업데이트
+        .listen((scheduleSnapshot) {
+      FirebaseFirestore.instance
+          .collection('projects')
+          .snapshots()
+          .listen((projectSnapshot) {
+        try {
+          // 'projects' 컬렉션 데이터 가져오기
+          final projects = projectSnapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'id': doc.id,
+              'labelColor': data['labelColor'] ?? '#FF000000',
+            };
+          }).toList();
+
+          // 'schedules' 컬렉션 데이터 가져오기
+          final schedules = scheduleSnapshot.docs.map((doc) {
+            final data = doc.data();
+            final projectId = data['projectId'] ?? '';
+
+            // 프로젝트와 일정 매칭
+            final project = projects.firstWhere(
+              (project) => project['id'] == projectId,
+              orElse: () => {'labelColor': '#000000'},
+            );
+
+            return {
+              'id': doc.id,
+              'title': data['title'] ?? '제목 없음',
+              'startDate': data['startDate'],
+              'endDate': data['endDate'],
+              'color': project['labelColor'],
+            };
+          }).toList();
+
+          // 상태 업데이트
+          state = schedules;
+        } catch (error) {
+          debugPrint('Error syncing schedules and projects: $error');
+        }
+      });
     });
   }
 
@@ -164,15 +195,19 @@ class _CalendarPageState extends State<CalendarPage> {
           .get(Uri.parse('https://worldtimeapi.org/api/timezone/Asia/Seoul'));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final currentDateTime = DateTime.parse(data['datetime']);
-
-        setState(() {
-          currentMonth = currentDateTime.month;
-          currentYear = currentDateTime.year;
-        });
+        try {
+          final data = jsonDecode(response.body);
+          final currentDateTime = DateTime.parse(data['datetime']);
+          setState(() {
+            currentMonth = currentDateTime.month;
+            currentYear = currentDateTime.year;
+          });
+        } catch (jsonError) {
+          print('JSON decoding error: $jsonError');
+        }
       } else {
-        print('Failed to load current date from server.');
+        print('Failed to load current date. Status: ${response.statusCode}');
+        print('Response body: ${response.body}');
       }
     } catch (error) {
       print('Error fetching current date: $error');
@@ -334,9 +369,46 @@ class _CalendarPageState extends State<CalendarPage> {
             Expanded(
               child: Container(
                 padding: EdgeInsets.all(8),
-                child: CalendarGrid(
-                  month: currentMonth,
-                  year: currentYear,
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    // Firestore에서 가져온 schedules 데이터 구독
+                    final schedules = ref.watch(scheduleProvider);
+
+                    // Firestore에서 projects 데이터 가져오기
+                    final projectsSnapshot = FirebaseFirestore.instance
+                        .collection('projects')
+                        .snapshots();
+
+                    return StreamBuilder(
+                      stream: projectsSnapshot,
+                      builder:
+                          (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+                        if (!snapshot.hasData) {
+                          return Center(
+                              child: CircularProgressIndicator()); // 로딩 상태 표시
+                        }
+
+                        // projects 데이터를 변환
+                        final projects = snapshot.data!.docs.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          return {
+                            'id': doc.id,
+                            'title': data['title'] ?? '제목 없음',
+                            'labelColor':
+                                data['labelColor'] ?? '#FF000000', // 기본값
+                          };
+                        }).toList();
+
+                        // 캘린더 그리드에 데이터를 전달
+                        return CalendarGrid(
+                          month: currentMonth,
+                          year: currentYear,
+                          projects: projects,
+                          schedules: schedules,
+                        );
+                      },
+                    );
+                  },
                 ),
               ),
             ),
@@ -400,8 +472,15 @@ class ProjectChip extends StatelessWidget {
 class CalendarGrid extends StatelessWidget {
   final int month;
   final int year;
+  final List<Map<String, dynamic>> projects;
+  final List<Map<String, dynamic>> schedules;
 
-  CalendarGrid({required this.month, required this.year});
+  CalendarGrid({
+    required this.month,
+    required this.year,
+    required this.projects,
+    required this.schedules,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -442,7 +521,9 @@ class CalendarGrid extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final startWeekday = getStartWeekday(year, month);
                   final totalDays = getTotalDays(year, month);
-
+                  //
+                  debugPrint('here2 $schedules');
+                  //
                   DateTime currentDate;
 
                   if (index < startWeekday - 1) {
@@ -539,18 +620,14 @@ class CalendarGrid extends StatelessWidget {
                         final startDateStr = schedule['startDate'] ?? '';
                         final endDateStr = schedule['endDate'] ?? '';
                         final title = schedule['title'] ?? '제목 없음';
-                        final colorStr = schedule['color'] ?? '#000000';
-
                         final startDate = DateTime.tryParse(startDateStr);
                         final endDate = DateTime.tryParse(endDateStr);
-
                         if (startDate == null || endDate == null)
                           return SizedBox();
 
-                        final color = Color(
-                          int.parse(colorStr.substring(1, 7), radix: 16) +
-                              0xFF000000,
-                        );
+                        final scheduleColor =
+                            hexToColor(schedule['color']);
+                        //스케쥴의 color값 활용
 
                         final isStartDate = DateTime(currentDate.year,
                                 currentDate.month, currentDate.day)
@@ -569,7 +646,6 @@ class CalendarGrid extends StatelessWidget {
                         // 각 일정의 위치를 위아래로 나누기 위해 top 값 조정
                         final topOffset =
                             scheduleIndex * 23.0; // 일정 간의 수직 간격 조정
-
                         return Positioned(
                           top: 20 + topOffset, // 일정의 수직 위치 조정
                           left: isStartDate ? 0 : -2, // 시작 날짜라면 왼쪽 여백 0
@@ -577,7 +653,9 @@ class CalendarGrid extends StatelessWidget {
                           child: Container(
                             height: 20, // 일정 높이
                             decoration: BoxDecoration(
-                              color: color,
+                              //here 유아이에 라벨컬러를 지정하는 곳
+                              color: scheduleColor, 
+                              //
                               borderRadius: BorderRadius.horizontal(
                                 left: isStartDate
                                     ? Radius.circular(12)

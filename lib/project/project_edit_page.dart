@@ -254,9 +254,7 @@ class _EditProjectPageState extends State<EditProjectPage> {
                                         style: ButtonStyle(
                                             backgroundColor:
                                                 MaterialStateProperty.all(
-                                                    tempColor ??
-                                                        const Color.fromARGB(
-                                                            255, 65, 65, 65))),
+                                                    tempColor)),
                                         onPressed: () {
                                           Navigator.of(context).pop(
                                             EditLabel(
@@ -450,6 +448,117 @@ class _EditProjectPageState extends State<EditProjectPage> {
                     ],
                   ),
                 ),
+
+                // 완료하기 버튼
+                Positioned(
+                  bottom: 16,
+                  left: 16, // 화면 왼쪽에 버튼 배치
+                  child: FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('projects')
+                        .doc(widget.project.id)
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return CircularProgressIndicator();
+                      }
+
+                      if (!snapshot.hasData || !snapshot.data!.exists) {
+                        return Text('프로젝트 데이터를 찾을 수 없습니다.');
+                      }
+
+                      final projectData =
+                          snapshot.data!.data() as Map<String, dynamic>;
+                      final isCompleted = projectData['isCompleted'] ?? false;
+
+                      return ElevatedButton(
+                        onPressed: () async {
+                          try {
+                            await FirebaseFirestore.instance
+                                .collection('projects')
+                                .doc(widget.project.id)
+                                .update({'isCompleted': !isCompleted});
+
+                            Navigator.of(context).pop();
+
+                            //팝업 표시하기
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: Colors.transparent, // 배경 투명화
+                              builder: (context) {
+                                // 1초 후 팝업 닫기
+                                Future.delayed(Duration(milliseconds: 1300),
+                                    () {
+                                  if (Navigator.of(context).canPop()) {
+                                    Navigator.of(context).pop(); // 팝업 닫기
+                                  }
+                                });
+                                return Container(
+                                  margin: EdgeInsets.all(30),
+                                  padding: EdgeInsets.fromLTRB(
+                                      30, 16, 30, 16), // 내부 여백
+                                  decoration: BoxDecoration(
+                                    color: Colors.white, // 팝업 배경색
+                                    borderRadius:
+                                        BorderRadius.circular(30), // 둥근 모서리
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        blurRadius: 10,
+                                        offset: Offset(0, -2), // 그림자 위치
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    mainAxisSize:
+                                        MainAxisSize.min, // 팝업 높이를 내용에 맞게 최소화
+                                    children: [
+                                      Text(
+                                        isCompleted
+                                            ? '프로젝트를 다시 진행합니다.'
+                                            : '프로젝트가 완료되었습니다.',
+                                        textAlign:
+                                            TextAlign.center, // 텍스트 정 가운데 정렬
+                                        style: TextStyle(
+                                            fontSize: 16), // 텍스트 스타일 설정
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                            //
+                          } catch (error) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('오류 발생: $error')),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _labelColor,
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isCompleted ? Icons.undo : Icons.check, // 아이콘 변경
+                              color: Colors.white,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              isCompleted ? '다시 진행하기' : '완료하기', // 텍스트 변경
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                //
                 // 저장 버튼
                 Positioned(
                   bottom: 16, // 화면 아래 16px

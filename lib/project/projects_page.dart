@@ -4,6 +4,7 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:roseo_study/project/project_edit_page.dart';
+import 'package:roseo_study/widgets/hex_to_color.dart';
 
 // 모델 클래스 생성 (그룹화)
 class NewLabel {
@@ -56,6 +57,34 @@ class _ProjectsPageState extends State<ProjectsPage> {
   final NumberFormat currencyFormatter =
       NumberFormat.currency(locale: 'ko_KR', symbol: '', decimalDigits: 0);
 
+  Future<int?> calculateDaysRemaining(String projectId) async {
+    final today = DateTime.now();
+    try {
+      final schedulesSnapshot = await FirebaseFirestore.instance
+          .collection('schedules')
+          .where('projectId', isEqualTo: projectId) // 프로젝트 ID와 일치하는 일정 필터링
+          .get();
+
+      if (schedulesSnapshot.docs.isEmpty) {
+        return null; // 일정이 없으면 null 반환
+      }
+
+      // 가장 마지막 일자 계산
+      final lastDate = schedulesSnapshot.docs
+          .map((doc) {
+            final data = doc.data();
+            return DateTime.tryParse(data['endDate'] ?? '');
+          })
+          .whereType<DateTime>()
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+
+      return lastDate.difference(today).inDays; // D-Day 계산
+    } catch (e) {
+      debugPrint("D-Day 계산 중 오류 발생: $e");
+      return null;
+    }
+  }
+
   Future<void> _saveProject() async {
     final projectData = {
       'createdAt': DateTime.now().toIso8601String(),
@@ -68,6 +97,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
       'currency': _selectedCurrency,
       'labelColor':
           '#${_newProjectLabelColor.value.toRadixString(16).padLeft(8, '0')}',
+      'isCompleted': false, // 기본값: 진행중
     };
 
     try {
@@ -153,13 +183,6 @@ class _ProjectsPageState extends State<ProjectsPage> {
     }
   }
 
-//파이어베이스에 저장된 색상 코드 변환
-  Color hexToColor(String hexString) {
-    final buffer = StringBuffer();
-    if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
-    buffer.write(hexString.replaceFirst('#', ''));
-    return Color(int.parse(buffer.toString(), radix: 16));
-  }
 
   void _clearFields() {
     setState(() {
@@ -181,189 +204,223 @@ class _ProjectsPageState extends State<ProjectsPage> {
         title: Text('프로젝트 관리'),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('projects')
-            .orderBy('createdAt', descending: true) // 생성일시 기준 내림차순 정렬
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          }
+          stream: FirebaseFirestore.instance
+              .collection('projects')
+              .orderBy('createdAt', descending: true) // 생성일시 기준 내림차순 정렬
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator());
+            }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Text(
-                '생성된 프로젝트가 없습니다.',
-                style: TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-            );
-          }
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return Center(
+                child: Text(
+                  '생성된 프로젝트가 없습니다.',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+              );
+            }
 
-          return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final project = snapshot.data!.docs[index];
-              final labelColor =
-                  hexToColor(project['labelColor'] ?? '#FF000000');
+            return ListView.builder(
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final project = snapshot.data!.docs[index];
+                  final labelColor =
+                      hexToColor(project['labelColor'] ?? '#FF000000');
+                  final isCompleted = project['isCompleted'] ?? false;
 
-              final lastDate = project['lastProjectDate'] != ''
-                  ? DateTime.parse(project['lastProjectDate'])
-                  : null;
-              final daysRemaining = lastDate != null
-                  ? lastDate.difference(DateTime.now()).inDays
-                  : null;
+                  return FutureBuilder<int?>(
+                    future: calculateDaysRemaining(project.id),
+                    builder: (context, dDaySnapshot) {
+                      if (dDaySnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return SizedBox.shrink(); // 로딩 상태에서는 아무것도 표시하지 않음
+                      }
 
-              return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EditProjectPage(project: project),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      color: Colors.transparent, // Card 배경 제거
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: labelColor, // 라벨 컬러 적용
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(2),
-                              topRight: Radius.circular(2),
-                              bottomLeft: Radius.circular(20),
-                              bottomRight: Radius.circular(20),
-                            ),
-                          ),
-                          padding: EdgeInsets.fromLTRB(
-                              20, 10, 20, 10), // 왼쪽, 위, 오른쪽, 아래 설정
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                project['title'] ?? '제목 없음',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                      if (dDaySnapshot.hasError) {
+                        debugPrint(
+                            "Error calculating D-Day: ${dDaySnapshot.error}");
+                        return Text('오류 발생',
+                            style: TextStyle(color: Colors.red));
+                      }
+
+                      final daysRemaining = dDaySnapshot.data;
+
+                      return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    EditProjectPage(project: project),
                               ),
-                              if (daysRemaining != null && daysRemaining >= 0)
-                                Text(
-                                  '${daysRemaining}일 남음',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-
-                        // Project Description
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Text(
-                            project['description'] != null &&
-                                    project['description'].isNotEmpty
-                                ? project['description']
-                                : '프로젝트 내용이 없습니다.', // 기본 메시지,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: project['description'] != null &&
-                                      project['description'].isNotEmpty
-                                  ? Color.fromARGB(255, 65, 65, 65)
-                                  : Colors.grey[500], // 기본 메시지는 흐린 색상
+                            );
+                          },
+                          child: Container(
+                            margin: EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 16),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: Colors.transparent, // Card 배경 제거
                             ),
-                          ),
-                        ),
-
-                        // Category, Client, Revenue Section
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end, // 오른쪽 정렬
-                          children: [
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.end, // 오른쪽 정렬
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Chip(
-                                  backgroundColor: labelColor,
-                                  label: Text(
-                                    project['category'] ?? '',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12), // 텍스트 크기 축소
+                                Container(
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: isCompleted
+                                        ? labelColor.withOpacity(0.5)
+                                        : labelColor,
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: Radius.circular(2),
+                                      topRight: Radius.circular(2),
+                                      bottomLeft: Radius.circular(20),
+                                      bottomRight: Radius.circular(20),
+                                    ),
                                   ),
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4), // 패딩 축소
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(50), // 둥글게 설정
-                                  ),
-                                  side: BorderSide.none, // 테두리 제거
-                                ),
-                                SizedBox(width: 8), // 칩 간 간격
-                                project['client'] != null &&
-                                        project['client'].isNotEmpty
-                                    ? Chip(
-                                        backgroundColor: labelColor,
-                                        label: Text(
-                                          project['client'],
-                                          style: TextStyle(
+                                  padding: EdgeInsets.fromLTRB(
+                                      20, 10, 20, 10), // 왼쪽, 위, 오른쪽, 아래 설정
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        project['title'] ?? '제목 없음',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      if (isCompleted == true)
+                                        Text('완료됨',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
                                               color: Colors.white,
-                                              fontSize: 12),
+                                            )),
+                                      if (daysRemaining != null && !isCompleted)
+                                        Text(
+                                          '${daysRemaining}일 남음',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
                                         ),
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 4),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(50),
-                                        ),
-                                        side: BorderSide.none, // 테두리 제거
-                                      )
-                                    : SizedBox
-                                        .shrink(), // 내용이 없으면 아무것도 렌더링하지 않음
+                                    ],
+                                  ),
+                                ),
 
-                                project['client'] != null &&
-                                        project['client'].isNotEmpty
-                                    ? SizedBox(width: 8)
-                                    : SizedBox.shrink(),
-                                Chip(
-                                  backgroundColor: labelColor,
-                                  label: Text(
-                                    '${currencyFormatter.format(project['revenue'] ?? 0)} ${project['currency'] ?? ''}',
+                                // Project Description
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(
+                                    project['description'] != null &&
+                                            project['description'].isNotEmpty
+                                        ? project['description']
+                                        : '프로젝트 내용이 없습니다.', // 기본 메시지,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12), // 텍스트 크기 축소
+                                      fontSize: 16,
+                                      color: project['description'] != null &&
+                                              project['description'].isNotEmpty
+                                          ? Color.fromARGB(255, 65, 65, 65)
+                                          : Colors.grey[500], // 기본 메시지는 흐린 색상
+                                    ),
                                   ),
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4), // 패딩 축소
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(50),
-                                  ),
-                                  side: BorderSide.none, // 테두리 제거
+                                ),
+
+                                // Category, Client, Revenue Section
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.end, // 오른쪽 정렬
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.end, // 오른쪽 정렬
+                                      children: [
+                                        Chip(
+                                          backgroundColor: isCompleted
+                                              ? labelColor.withOpacity(0.5)
+                                              : labelColor,
+                                          label: Text(
+                                            project['category'] ?? '',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12), // 텍스트 크기 축소
+                                          ),
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4), // 패딩 축소
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                                50), // 둥글게 설정
+                                          ),
+                                          side: BorderSide.none, // 테두리 제거
+                                        ),
+                                        SizedBox(width: 8), // 칩 간 간격
+                                        project['client'] != null &&
+                                                project['client'].isNotEmpty
+                                            ? Chip(
+                                                backgroundColor: isCompleted
+                                                    ? labelColor
+                                                        .withOpacity(0.5)
+                                                    : labelColor,
+                                                label: Text(
+                                                  project['client'],
+                                                  style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 12),
+                                                ),
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 4),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(50),
+                                                ),
+                                                side: BorderSide.none, // 테두리 제거
+                                              )
+                                            : SizedBox
+                                                .shrink(), // 내용이 없으면 아무것도 렌더링하지 않음
+
+                                        project['client'] != null &&
+                                                project['client'].isNotEmpty
+                                            ? SizedBox(width: 8)
+                                            : SizedBox.shrink(),
+                                        Chip(
+                                          backgroundColor: isCompleted
+                                              ? labelColor.withOpacity(0.5)
+                                              : labelColor,
+                                          label: Text(
+                                            '${currencyFormatter.format(project['revenue'] ?? 0)} ${project['currency'] ?? ''}',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12), // 텍스트 크기 축소
+                                          ),
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4), // 패딩 축소
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(50),
+                                          ),
+                                          side: BorderSide.none, // 테두리 제거
+                                        ),
+                                      ],
+                                    )
+                                  ],
                                 ),
                               ],
-                            )
-                          ],
-                        ),
-                      ],
-                    ),
-                  ));
-            },
-          );
-        },
-      ),
+                            ),
+                          ));
+                    },
+                  );
+                });
+          }),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddProjectDialog(context),
         backgroundColor: Colors.black,
