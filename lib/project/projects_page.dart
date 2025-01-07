@@ -57,16 +57,15 @@ class _ProjectsPageState extends State<ProjectsPage> {
   final NumberFormat currencyFormatter =
       NumberFormat.currency(locale: 'ko_KR', symbol: '', decimalDigits: 0);
 
-  Future<int?> calculateDaysRemaining(String projectId) async {
+  Stream<int?> calculateDaysRemaining(String projectId) async* {
     final today = DateTime.now();
-    try {
-      final schedulesSnapshot = await FirebaseFirestore.instance
-          .collection('schedules')
-          .where('projectId', isEqualTo: projectId) // 프로젝트 ID와 일치하는 일정 필터링
-          .get();
-
+    await for (final schedulesSnapshot in FirebaseFirestore.instance
+        .collection('schedules')
+        .where('projectId', isEqualTo: projectId)
+        .snapshots()) {
       if (schedulesSnapshot.docs.isEmpty) {
-        return null; // 일정이 없으면 null 반환
+        yield null;
+        continue;
       }
 
       // 가장 마지막 일자 계산
@@ -78,10 +77,7 @@ class _ProjectsPageState extends State<ProjectsPage> {
           .whereType<DateTime>()
           .reduce((a, b) => a.isAfter(b) ? a : b);
 
-      return lastDate.difference(today).inDays; // D-Day 계산
-    } catch (e) {
-      debugPrint("D-Day 계산 중 오류 발생: $e");
-      return null;
+      yield lastDate.difference(today).inDays;
     }
   }
 
@@ -183,7 +179,6 @@ class _ProjectsPageState extends State<ProjectsPage> {
     }
   }
 
-
   void _clearFields() {
     setState(() {
       _titleController.clear();
@@ -221,30 +216,20 @@ class _ProjectsPageState extends State<ProjectsPage> {
                 ),
               );
             }
+            final projects = snapshot.data!.docs;
 
             return ListView.builder(
-                itemCount: snapshot.data!.docs.length,
+                itemCount: projects.length,
                 itemBuilder: (context, index) {
-                  final project = snapshot.data!.docs[index];
+                  final project = projects[index];
+                  final projectId = project.id;
                   final labelColor =
                       hexToColor(project['labelColor'] ?? '#FF000000');
                   final isCompleted = project['isCompleted'] ?? false;
 
-                  return FutureBuilder<int?>(
-                    future: calculateDaysRemaining(project.id),
+                  return StreamBuilder<int?>(
+                    stream: calculateDaysRemaining(projectId),
                     builder: (context, dDaySnapshot) {
-                      if (dDaySnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return SizedBox.shrink(); // 로딩 상태에서는 아무것도 표시하지 않음
-                      }
-
-                      if (dDaySnapshot.hasError) {
-                        debugPrint(
-                            "Error calculating D-Day: ${dDaySnapshot.error}");
-                        return Text('오류 발생',
-                            style: TextStyle(color: Colors.red));
-                      }
-
                       final daysRemaining = dDaySnapshot.data;
 
                       return GestureDetector(
