@@ -347,61 +347,77 @@ class _CalendarPageState extends State<CalendarPage> {
         child: Column(
           children: [
             AnimatedContainer(
-              duration: Duration(milliseconds: 300),
-              height:
-                  isExpanded ? MediaQuery.of(context).size.height * 0.27 : 90,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(20),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.5),
-                    spreadRadius: 1,
-                    blurRadius: 8,
-                    offset: Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  ...List.generate(filteredProjects.length, (index) {
-                    final reverseIndex =
-                        filteredProjects.length - index - 1; // 역순 인덱스
-                    final project = filteredProjects[reverseIndex];
-                    final stackSpacing = 3.0;
-                    final topOffset = isExpanded
-                        ? reverseIndex * 40.0
-                        : reverseIndex * stackSpacing;
+  duration: Duration(milliseconds: 300),
+  height: isExpanded
+      ? MediaQuery.of(context).size.height * 0.27
+      : 90,
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.vertical(
+      bottom: Radius.circular(20),
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.grey.withOpacity(0.5),
+        spreadRadius: 1,
+        blurRadius: 8,
+        offset: Offset(0, -2),
+      ),
+    ],
+  ),
+  child: Stack(
+    children: [
+      if (filteredProjects.isEmpty)
+        Positioned(
+          top: 0, // 최상단에 배치
+          left: 0,
+          right: 0,
+          child: ProjectChip(
+            title: '이번 달에 진행하는 프로젝트가 없습니다.',
+            daysLeft: -1,
+            color: Colors.grey,
+            isPlaceholder: true, // 기본 메시지로 표시
+          ),
+        )
+      else
+        ...List.generate(filteredProjects.length, (index) {
+          final reverseIndex =
+              filteredProjects.length - index - 1; // 역순 인덱스
+          final project = filteredProjects[reverseIndex];
+          final stackSpacing = 3.0;
+          final topOffset = isExpanded
+              ? reverseIndex * 40.0
+              : reverseIndex * stackSpacing;
 
-                    return AnimatedPositioned(
-                      duration: Duration(milliseconds: 300),
-                      top: topOffset,
-                      left: 0,
-                      right: 0,
-                      child: ProjectChip(
-                        title: project['title'] as String,
-                        daysLeft: project['daysLeft'] as int,
-                        color: project['color'] as Color,
-                      ),
-                    );
-                  }),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          return AnimatedPositioned(
+            duration: Duration(milliseconds: 300),
+            top: topOffset,
+            left: 0,
+            right: 0,
+            child: ProjectChip(
+              title: project['title'] as String,
+              daysLeft: project['daysLeft'] as int,
+              color: project['color'] as Color,
             ),
+          );
+        }),
+      Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: 40,
+          height: 4,
+          margin: EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: Colors.grey,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+
+
             // 캘린더 영역
             Expanded(
               child: Container(
@@ -471,9 +487,14 @@ class ProjectChip extends StatelessWidget {
   final String title;
   final int daysLeft;
   final Color color;
+  final bool isPlaceholder; // 기본 메시지 여부 플래그
 
-  ProjectChip(
-      {required this.title, required this.daysLeft, required this.color});
+  ProjectChip({
+    required this.title,
+    required this.daysLeft,
+    required this.color,
+    this.isPlaceholder = false, // 기본값: false
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -485,26 +506,40 @@ class ProjectChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: isPlaceholder
+            ? MainAxisAlignment.center // 중앙 정렬
+            : MainAxisAlignment.spaceBetween, // 데이터가 있을 경우 왼쪽 정렬
         children: [
-          Expanded(
-            child: Text(
+          if (!isPlaceholder) // 데이터가 있을 경우만 타이틀 표시
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.left,
+              ),
+            ),
+          if (isPlaceholder) // 기본 메시지일 경우 중앙 정렬 텍스트
+            Text(
               title,
               style: TextStyle(
                 color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
               ),
-              textAlign: TextAlign.left,
+              textAlign: TextAlign.center,
             ),
-          ),
-          Text(
-  daysLeft != null
-      ? (daysLeft > 0
-          ? '${daysLeft}일 남음'
-          : (daysLeft == 0 ? '오늘 마감' : '${-daysLeft}일 지남'))
-      : '일정 없음',
-  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-),
-
+          if (!isPlaceholder) // 데이터가 있을 경우만 daysLeft 표시
+            Text(
+              daysLeft > 0
+                  ? '${daysLeft}일 남음'
+                  : (daysLeft == 0 ? '오늘 마감' : '${-daysLeft}일 지남'),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
         ],
       ),
     );
