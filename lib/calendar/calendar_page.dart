@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -176,11 +175,13 @@ class _CalendarPageState extends State<CalendarPage> {
   int currentMonth = DateTime.now().month;
   int currentYear = DateTime.now().year;
   bool isExpanded = false; // 드래그 상태 확인 변수
+  List<Map<String, dynamic>> filteredProjects = [];
 
   @override
   void initState() {
     super.initState();
     fetchCurrentDateFromServer();
+    fetchProjectsForCurrentMonth();
 
     // Firestore 데이터 초기 로드
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -214,12 +215,70 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
+  Future<void> fetchProjectsForCurrentMonth() async {
+    final now = DateTime.now();
+    final startOfMonth = DateTime(currentYear, currentMonth, 1);
+    final endOfMonth = DateTime(currentYear, currentMonth + 1, 0);
+
+    FirebaseFirestore.instance
+        .collection('projects')
+        .snapshots()
+        .listen((projectSnapshot) {
+      FirebaseFirestore.instance
+          .collection('schedules')
+          .where('startDate',
+              isGreaterThanOrEqualTo: startOfMonth.toIso8601String())
+          .where('startDate', isLessThanOrEqualTo: endOfMonth.toIso8601String())
+          .snapshots()
+          .listen((scheduleSnapshot) {
+        final List<Map<String, dynamic>> tempProjects = [];
+
+        for (var projectDoc in projectSnapshot.docs) {
+          final projectData = projectDoc.data();
+          if (projectData['isCompleted'] == true) continue;
+
+          final projectSchedules = scheduleSnapshot.docs.where((scheduleDoc) {
+            final scheduleData = scheduleDoc.data();
+            return scheduleData['projectId'] == projectDoc.id;
+          }).toList();
+
+          if (projectSchedules.isNotEmpty) {
+            final daysLeft = projectSchedules
+                .map((scheduleDoc) {
+                  final scheduleData = scheduleDoc.data();
+                  final endDate =
+                      DateTime.tryParse(scheduleData['endDate'] ?? '');
+                  return endDate != null
+                      ? endDate.difference(now).inDays
+                      : null;
+                })
+                .whereType<int>()
+                .reduce((a, b) => a < b ? a : b); // 가장 짧은 남은 일자 선택
+
+            tempProjects.add({
+              'title': projectData['title'] ?? '제목 없음',
+              'daysLeft': daysLeft,
+              'color': hexToColor(projectData['labelColor'] ?? '#000000'),
+            });
+          }
+        }
+
+        tempProjects.sort((a, b) => a['daysLeft'].compareTo(b['daysLeft']));
+
+        setState(() {
+          filteredProjects = tempProjects;
+        });
+      });
+    });
+  }
+
   void goToNextMonth() {
     setState(() {
       if (currentYear == 2099 && currentMonth == 12) return;
       currentMonth = (currentMonth % 12) + 1;
       if (currentMonth == 1) currentYear++;
     });
+    fetchProjectsForCurrentMonth(); // 데이터 갱신
   }
 
   void goToPreviousMonth() {
@@ -232,30 +291,11 @@ class _CalendarPageState extends State<CalendarPage> {
         currentMonth--;
       }
     });
+    fetchProjectsForCurrentMonth(); // 데이터 갱신
   }
 
   @override
   Widget build(BuildContext context) {
-    final projects = [
-      {'title': '11~12월 커미션', 'daysLeft': 3, 'color': Color(0xFF9747FF)},
-      {
-        'title': '신세계 백화점 연말 전시 포스터/리플렛',
-        'daysLeft': 17,
-        'color': Color(0xFFFF776A)
-      },
-      {
-        'title': '신세계 백화점 연초 아트월',
-        'daysLeft': 40,
-        'color': Color.fromARGB(255, 255, 81, 87)
-      },
-      {
-        'title': '팟캐스트',
-        'daysLeft': 83,
-        'color': Color.fromARGB(255, 255, 164, 6)
-      },
-      {'title': '24절기 병풍 프로젝트', 'daysLeft': 320, 'color': Color(0xFFCCA0FF)},
-    ];
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -310,28 +350,27 @@ class _CalendarPageState extends State<CalendarPage> {
               duration: Duration(milliseconds: 300),
               height:
                   isExpanded ? MediaQuery.of(context).size.height * 0.27 : 90,
-              //펼쳐졌을 때 높이 : 접혔을 때 높이
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(20), // 모서리 둥글기 추가
+                  bottom: Radius.circular(20),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.5), // 섀도우 색상
+                    color: Colors.grey.withOpacity(0.5),
                     spreadRadius: 1,
                     blurRadius: 8,
-                    offset: Offset(0, -2), // 섀도우 방향
+                    offset: Offset(0, -2),
                   ),
                 ],
               ),
               child: Stack(
                 children: [
-                  // 스프레드 연산자를 사용하여 위젯 리스트 추가
-                  ...List.generate(projects.length, (index) {
-                    final reverseIndex = projects.length - index - 1; // 역순 인덱스
-                    final project = projects[reverseIndex];
-                    final stackSpacing = 3.0; // 스택에서 칩 간의 간격
+                  ...List.generate(filteredProjects.length, (index) {
+                    final reverseIndex =
+                        filteredProjects.length - index - 1; // 역순 인덱스
+                    final project = filteredProjects[reverseIndex];
+                    final stackSpacing = 3.0;
                     final topOffset = isExpanded
                         ? reverseIndex * 40.0
                         : reverseIndex * stackSpacing;
@@ -348,13 +387,12 @@ class _CalendarPageState extends State<CalendarPage> {
                       ),
                     );
                   }),
-                  // 하단 중앙 회색 라인 항상 표시
                   Align(
                     alignment: Alignment.bottomCenter,
                     child: Container(
                       width: 40,
                       height: 4,
-                      margin: EdgeInsets.only(bottom: 16), // 간격 조정
+                      margin: EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
                         color: Colors.grey,
                         borderRadius: BorderRadius.circular(2),
@@ -364,7 +402,6 @@ class _CalendarPageState extends State<CalendarPage> {
                 ],
               ),
             ),
-
             // 캘린더 영역
             Expanded(
               child: Container(
@@ -445,7 +482,7 @@ class ProjectChip extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: color.withOpacity(1),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -460,9 +497,14 @@ class ProjectChip extends StatelessWidget {
             ),
           ),
           Text(
-            '$daysLeft일 남음',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
+  daysLeft != null
+      ? (daysLeft > 0
+          ? '${daysLeft}일 남음'
+          : (daysLeft == 0 ? '오늘 마감' : '${-daysLeft}일 지남'))
+      : '일정 없음',
+  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+),
+
         ],
       ),
     );
@@ -625,8 +667,7 @@ class CalendarGrid extends StatelessWidget {
                         if (startDate == null || endDate == null)
                           return SizedBox();
 
-                        final scheduleColor =
-                            hexToColor(schedule['color']);
+                        final scheduleColor = hexToColor(schedule['color']);
                         //스케쥴의 color값 활용
 
                         final isStartDate = DateTime(currentDate.year,
@@ -654,7 +695,7 @@ class CalendarGrid extends StatelessWidget {
                             height: 20, // 일정 높이
                             decoration: BoxDecoration(
                               //here 유아이에 라벨컬러를 지정하는 곳
-                              color: scheduleColor, 
+                              color: scheduleColor,
                               //
                               borderRadius: BorderRadius.horizontal(
                                 left: isStartDate

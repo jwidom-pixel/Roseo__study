@@ -288,7 +288,11 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                             )),
                                       if (daysRemaining != null && !isCompleted)
                                         Text(
-                                          '${daysRemaining}일 남음',
+                                          daysRemaining > 0
+                                              ? '${daysRemaining}일 남음'
+                                              : (daysRemaining == 0
+                                                  ? '오늘 마감'
+                                                  : '${-daysRemaining}일 지남'),
                                           style: TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold,
